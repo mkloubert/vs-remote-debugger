@@ -176,6 +176,9 @@ class RemoteDebugger {
      * @param array $vars The custom variables to send.
      */
     public function dbg($vars = []) {
+        $now = new \DateTime();
+        $now->setTimezone(new \DateTimeZone('UTC'));
+    
         $backtrace = \debug_backtrace();
 
         $callingLine = $backtrace[0];
@@ -195,6 +198,7 @@ class RemoteDebugger {
                     'debugger' => $this,
                     'host' => $connData,
                     'provider' => [ $providerIndex, $provider ],
+                    'time' => $now,
                 ];
 
                 $variableItems = null;
@@ -213,12 +217,12 @@ class RemoteDebugger {
                     'v' => $variableItems,
                 ];
 
-                $client = $this->unwrapValue($this->TargetClient);
+                $client = $this->unwrapValue($this->TargetClient, $eventData);
                 if (!empty($client)) {
                     $entry['c'] = $client;
                 }
 
-                $app = $this->unwrapValue($this->App);
+                $app = $this->unwrapValue($this->App, $eventData);
                 if (!empty($app)) {
                     $entry['a'] = $app;
                 }
