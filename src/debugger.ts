@@ -38,12 +38,17 @@ import {
 import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import Net = require('net');
-
+import OS = require("os");
 
 /**
  * Describes a debugger entry.
  */
 export interface RemoteDebuggerEntry {
+    /**
+     * The name of the client the entry is for.
+     */
+    c?: string;
+
     /**
      * The name of the file.
      */
@@ -166,8 +171,8 @@ export interface RemoteDebuggerVariable {
 }
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-    program: string;
-    stopOnEntry?: boolean;
+    client?: string;
+    port?: number;
 }
 
 /**
@@ -360,9 +365,11 @@ class RemoteDebugSession extends DebugSession {
         // this.log('launchRequest');
 
         this.startServer({
+            client: args.client,
             completed: () => {
                 me.sendResponse(response);
-            }
+            },
+            port: args.port,
         });
 
         // this.sendEvent(new StoppedEvent("entry", MockDebugSession.THREAD_ID));
@@ -476,7 +483,22 @@ class RemoteDebugSession extends DebugSession {
         }
 
         let me = this;
+
         let port = 5979;
+        if (opts.port) {
+            port = opts.port;
+        }
+
+        let client: string = '';
+        if (opts.client) {
+            client = '' + opts.client;
+        }
+        if ('' === client) {
+            client = OS.hostname();
+        }
+        if (client) {
+            client = client.toLowerCase().trim();
+        }
 
         me._currentEntry = -1;
 
@@ -504,13 +526,23 @@ class RemoteDebugSession extends DebugSession {
                             try {
                                 let entry: RemoteDebuggerEntry = JSON.parse(json);
                                 if (entry) {
-                                    me._entries.push(entry);
+                                    let addEntry = true;
+                                    if (entry.c) {
+                                        let targetClient = ('' + entry.c).toLowerCase().trim();
+                                        if ('' != targetClient) {
+                                            addEntry = targetClient == client;
+                                        }
+                                    }
 
-                                    if (!me.entry) {
-                                        // select last entry
+                                    if (addEntry) {
+                                        me._entries.push(entry);
 
-                                        me._currentEntry = this._entries.length - 1;
-                                        this.sendEvent(new StoppedEvent("step", 1));
+                                        if (!me.entry) {
+                                            // select last entry
+
+                                            me._currentEntry = this._entries.length - 1;
+                                            this.sendEvent(new StoppedEvent("step", 1));
+                                        }
                                     }
                                 }
                             }
@@ -533,7 +565,7 @@ class RemoteDebugSession extends DebugSession {
             if (!err) {
                 me._server = newServer;
 
-                me.log('TCP server started on port ' + port);
+                me.log('TCP server started on port ' + port + ' for client ' + client);
             }
             else {
                 showError(err, "listening");

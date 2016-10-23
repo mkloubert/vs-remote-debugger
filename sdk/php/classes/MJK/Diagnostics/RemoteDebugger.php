@@ -66,6 +66,12 @@ class RemoteDebugger {
      * @var callable
      */
     public $EntryFilter;
+    /**
+     * The name of the target client or the callable that provides it.
+     *
+     * @var callable|string
+     */
+    public $TargetClient;
 
     /**
      * Adds a debugger host or a callable that provides its connection data.
@@ -200,6 +206,11 @@ class RemoteDebugger {
                     's' => [],
                     'v' => $variableItems,
                 ];
+
+                $client = $this->unwrapValue($this->TargetClient);
+                if (!empty($client)) {
+                    $entry['c'] = $client;
+                }
 
                 $currentThread = $this->unwrapValue($this->CurrentThread, $eventData);
                 if (!empty($currentThread)) {
