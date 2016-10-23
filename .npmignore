@@ -6,6 +6,6 @@ sdk/**
 src/**
 **/*.map
 .gitignore
-.npmignore
+.vscodeignore
 tsconfig.json
 vsc-extension-quickstart.md
