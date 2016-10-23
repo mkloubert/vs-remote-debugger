@@ -4,6 +4,7 @@ out/test/**
 test/**
 sdk/**
 src/**
+img/**
 **/*.map
 .gitignore
 .npmignore

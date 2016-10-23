@@ -59,18 +59,11 @@
         "@types/mocha": "^2.2.32"
     },
     "keywords": [
-        "Visual",
-        "Studio",
-        "Code",
         "Extensions",
         "Plugins",
         "Debugger",
         "Debugging",
-        "Remote",
-        "TCP",
-        "Servers",
-        "Hosts",
-        "Clients"
+        "Remote"
     ],
     "author": {
         "name": "Marcel Joachim Kloubert",
