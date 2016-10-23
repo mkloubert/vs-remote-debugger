@@ -2,7 +2,7 @@
     "name": "vs-remote-debugger",
     "displayName": "vs-remote-debugger",
     "description": "Visual Studio Code extension for easy and generic code debugging.",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.5.0"
@@ -15,10 +15,6 @@
     ],
     "main": "./out/src/extension",
     "contributes": {
-        "commands": [{
-            "command": "extension.remoteDebugger",
-            "title": "Remote Debugger"
-        }],
         "debuggers": [{
 			"type": "vs-remote-debugger",
 			"label": "Remote Debugger",
@@ -28,8 +24,17 @@
 
 			"configurationAttributes": {
 				"launch": {
-					"required": ["program"],
-					"properties": { }
+					"required": [],
+					"properties": { 
+                        "client": {
+                            "type": "string",
+                            "description": "The custom name of the client where the debugger runs."
+                        },
+                        "port": {
+                            "type": "number",
+                            "description": "The custom TCP debugger on what the debugger listens."
+                        }
+                    }
 				}
 			},
 
@@ -49,12 +54,15 @@
         "compile": "tsc -watch -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install"
     },
+    "dependencies": {
+        "vscode-debugadapter": "^1.11.0",
+		"vscode-debugprotocol": "^1.11.0"
+    },
     "devDependencies": {
-        "vscode-debugprotocol": "^1.13.0",
-        "vscode-debugadapter": "^1.13.1",
         "typescript": "^2.0.3",
         "vscode": "^1.0.0",
         "mocha": "^2.3.3",
+        "vscode-debugadapter-testsupport": "^1.11.0",
         "@types/node": "^6.0.40",
         "@types/mocha": "^2.2.32"
     },
