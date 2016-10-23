@@ -635,7 +635,7 @@ class RemoteDebugSession extends DebugSession {
             if (!err) {
                 me._server = newServer;
 
-                me.log('TCP server started on port ' + port + ' for client ' + client);
+                me.log('TCP server started on port ' + port + ' for clients "' + clients.join('", "') + '" and apps "' + apps.join('", "') + '"');
             }
             else {
                 showError(err, "listening");
