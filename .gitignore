@@ -3,3 +3,4 @@ node_modules
 /.vscode
 /sdk/php/.idea
 /sdk/php/.vscode
+/pushall.sh
