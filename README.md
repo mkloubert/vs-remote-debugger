@@ -6,7 +6,7 @@ Visual Studio Code extension that makes it easy to debug code on a remote host b
 
 Launch VS Code Quick Open (Ctrl+P), paste the following command, and press enter:
 
-```
+```bash
 ext install vs-remote-debugger
 ```
 
