@@ -515,7 +515,7 @@ class RemoteDebugSession extends DebugSession {
         // clients
         let clients: string[] = [];
         if (opts.clients) {
-            for (let i = 0; i < clients.length; i++) {
+            for (let i = 0; i < opts.clients.length; i++) {
                 let c = opts.clients[i];
                 if (!c) {
                     continue;
@@ -531,7 +531,7 @@ class RemoteDebugSession extends DebugSession {
         // apps
         let apps: string[] = [];
         if (opts.apps) {
-            for (let i = 0; i < apps.length; i++) {
+            for (let i = 0; i < opts.apps.length; i++) {
                 let a = opts.apps[i];
                 if (!a) {
                     continue;
