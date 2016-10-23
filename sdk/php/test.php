@@ -6,12 +6,13 @@ require './config.inc.php';
 
 function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
     $debugger->dbg([
-        'a' => 1,
-        'b' => 2.34,
-        'c' => 'Marcel K! Marcel K! Marcel K!',
-        'd' => false,
-        'e' => null,
-        'f' => true,
+        'a' => date('Y-m-d H:i:s'),
+        'b' => 1,
+        'c' => 2.34,
+        'd' => 'Marcel K! Marcel K! Marcel K!',
+        'e' => false,
+        'f' => null,
+        'g' => true,
     ]);
 }
 
@@ -21,7 +22,4 @@ class MyClass {
     }
 }
 
-$debugger = new \MJK\Diagnostics\RemoteDebugger();
-$debugger->addHost();
-
-MyClass::staticTestMethod($debugger);
+require './test1.inc.php';

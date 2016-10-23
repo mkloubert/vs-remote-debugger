@@ -220,6 +220,9 @@ class RemoteDebugSession extends DebugSession {
         this.sendResponse(response);
     }
 
+    /**
+     * Gets the current entry.
+     */
     public get entry(): RemoteDebuggerEntry {
         // this.log('entry');
 
@@ -240,6 +243,7 @@ class RemoteDebugSession extends DebugSession {
         let entry = this.entry;
         if (entry) {
             if (entry.s) {
+                // iterate over stack frames
                 for (let i = 0; i < entry.s.length; i++) {
                     let sf = entry.s[i];
                     if (!sf) {
@@ -254,6 +258,7 @@ class RemoteDebugSession extends DebugSession {
                         continue;
                     }
 
+                    // iterate variables
                     for (let j = 0; j < sf.v.length; j++) {
                         let ve = sf.v[j];
                         if (!ve) {
@@ -371,8 +376,6 @@ class RemoteDebugSession extends DebugSession {
             },
             port: args.port,
         });
-
-        // this.sendEvent(new StoppedEvent("entry", MockDebugSession.THREAD_ID));
     }
 
     protected log(msg) {

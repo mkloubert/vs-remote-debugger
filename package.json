@@ -38,8 +38,8 @@
 					"name": "Remote Debugger",
 					"type": "vs-remote-debugger",
 					"request": "launch",
-					"program": "readme.md",
-					"stopOnEntry": true
+					"client": null,
+					"port": 5979
 				}
 			]
 		}]

@@ -296,6 +296,19 @@ class RemoteDebugger {
 
                         $stackFrame['n'] = $stackFrameName;
                     }
+                    else {
+                        if (!empty($bt['function'])) {
+                            $stackFrame['n'] = $bt['function'];
+
+                            switch ($stackFrame['n']) {
+                                case 'include':
+                                case 'include_once':
+                                case 'require':
+                                case 'require_once':
+                                    break;
+                            }
+                        }
+                    }
 
                     // get stack frame name for 'current function'
                     $sfCurrentFunc = $this->CurrentFunctionStackFrame;
