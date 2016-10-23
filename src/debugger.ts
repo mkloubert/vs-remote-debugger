@@ -38,6 +38,7 @@ import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import Net = require('net');
 import OS = require("os");
+import Path = require('path');
 
 /**
  * Describes a debugger entry.
@@ -189,6 +190,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     clients?: string[];
 
     /**
+     * localSourceRoot
+     */
+    localSourceRoot: string;
+
+    /**
      * The TCP port.
      */
     port?: number;
@@ -210,6 +216,10 @@ class RemoteDebugSession extends DebugSession {
      * The current server.
      */
     protected _server: Net.Server;
+    /**
+     * The root of the sources / workspace.
+     */
+    protected _sourceRoot: string;
 
     /**
      * Initializes a new instance of that class.
@@ -388,6 +398,8 @@ class RemoteDebugSession extends DebugSession {
         
         // this.log('launchRequest');
 
+        me._sourceRoot = args.localSourceRoot;
+
         this.startServer({
             apps: args.apps,
             clients: args.clients,
@@ -482,7 +494,13 @@ class RemoteDebugSession extends DebugSession {
 
                 let src: Source;
                 if (sf.f) {
-                    src = new Source(basename(sf.f), sf.f);
+                    let fileName: string = sf.fn;
+                    if (!fileName) {
+                        fileName = basename(sf.f);
+                    }
+
+                    src = new Source(fileName,
+                                     Path.join(this._sourceRoot, sf.f));
                 }
 
                 FRAMES.push(new StackFrame(sf.i, sf.n, src, sf.l));

@@ -73,6 +73,12 @@ class RemoteDebugger {
      */
     public $EntryFilter;
     /**
+     * The path of the script root or the callable that provides it.
+     *
+     * @var callable|string
+     */
+    public $ScriptRoot;
+    /**
      * The name of the target client or the callable that provides it.
      *
      * @var callable|string
@@ -287,8 +293,9 @@ class RemoteDebugger {
 
                     // file
                     if (!empty($bt['file'])) {
-                        $stackFrame['f'] = $bt['file'];
-                        $stackFrame['fn'] = \basename($stackFrame['f']);
+                        $stackFrame['ln'] = $bt['file'];
+                        $stackFrame['f'] = $this->toRelativePath($stackFrame['ln']);
+                        $stackFrame['fn'] = \basename($stackFrame['ln']);
                     }
 
                     // line
@@ -399,10 +406,6 @@ class RemoteDebugger {
                     if (!empty($stackFrame)) {
                         $entry['s'][] = $stackFrame;
                     }
-                }
-
-                if (!empty($callingLine['file'])) {
-                    $entry['f'] = $callingLine['file'];
                 }
 
                 if (null !== $filter) {
@@ -551,6 +554,33 @@ class RemoteDebugger {
         }
 
         return $value;
+    }
+
+    protected function toRelativePath($path) {
+        $normalizedPath = \realpath($path);
+        if (\file_exists($normalizedPath)) {
+            $scriptRoot = $this->unwrapValue($this->ScriptRoot);
+            if (empty($scriptRoot)) {
+                $scriptRoot = @\getcwd();
+                if (false === $scriptRoot) {
+                    if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+                        $scriptRoot = \realpath($_SERVER['DOCUMENT_ROOT']);
+                    }
+                }
+                else {
+                    $scriptRoot = \realpath($scriptRoot);
+                }
+            }
+
+            if (\is_dir($scriptRoot)) {
+                if (0 === \stripos($normalizedPath, $scriptRoot)) {
+                    $path = \substr($normalizedPath, \strlen($scriptRoot));
+                    $path = \str_replace(\DIRECTORY_SEPARATOR, '/', $path);
+                }
+            }
+        }
+
+        return $path;
     }
 
     /**
