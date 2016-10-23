@@ -2,7 +2,7 @@
     "name": "vs-remote-debugger",
     "displayName": "vs-remote-debugger",
     "description": "Visual Studio Code extension for easy and generic code debugging.",
-    "version": "0.0.1",
+    "version": "0.2.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.5.0"

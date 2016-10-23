@@ -10,3 +10,4 @@ img/**
 .npmignore
 tsconfig.json
 vsc-extension-quickstart.md
+/pushall.sh
