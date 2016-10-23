@@ -55,8 +55,38 @@
         "typescript": "^2.0.3",
         "vscode": "^1.0.0",
         "mocha": "^2.3.3",
-        "@types/es6-collections": "^0.5.29",
         "@types/node": "^6.0.40",
         "@types/mocha": "^2.2.32"
+    },
+    "keywords": [
+        "Visual",
+        "Studio",
+        "Code",
+        "Extensions",
+        "Plugins",
+        "Debugger",
+        "Debugging",
+        "Remote",
+        "TCP",
+        "Servers",
+        "Hosts",
+        "Clients"
+    ],
+    "author": {
+        "name": "Marcel Joachim Kloubert",
+        "email": "marcel.kloubert@gmx.net"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mkloubert/vs-remote-debugger"
+    },
+    "bugs": {
+        "url": "https://github.com/mkloubert/vs-remote-debugger/issues"
+    },
+    "homepage": "https://github.com/mkloubert/vs-remote-debugger",
+    "readmeFilename": "README.md",
+    "license": {
+        "type": "LGPL",
+        "url": "https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE"
     }
 }

@@ -1,5 +1,4 @@
 /// <reference types="node" />
-/// <reference types="es6-collections" />
 
 /**
    vs-remote-debugger (https://github.com/mkloubert/vs-remote-debugger)
