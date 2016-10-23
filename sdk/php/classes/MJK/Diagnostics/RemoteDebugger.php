@@ -19,6 +19,12 @@ class RemoteDebugger {
     protected $_hostProviders = [];
 
     /**
+     * The name of the app or the callable that provides it.
+     *
+     * @var callable|string
+     */
+    public $App;
+    /**
      * The name for the current function stack frame or the callable that provides it.
      *
      * @var callable|string
@@ -210,6 +216,11 @@ class RemoteDebugger {
                 $client = $this->unwrapValue($this->TargetClient);
                 if (!empty($client)) {
                     $entry['c'] = $client;
+                }
+
+                $app = $this->unwrapValue($this->App);
+                if (!empty($app)) {
+                    $entry['a'] = $app;
                 }
 
                 $currentThread = $this->unwrapValue($this->CurrentThread, $eventData);

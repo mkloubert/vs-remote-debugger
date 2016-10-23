@@ -44,6 +44,11 @@ import OS = require("os");
  */
 export interface RemoteDebuggerEntry {
     /**
+     * The name of the app the entry is for.
+     */
+    a?: string;
+
+    /**
      * The name of the client the entry is for.
      */
     c?: string;
@@ -169,8 +174,23 @@ export interface RemoteDebuggerVariable {
     v?: any;
 }
 
+/**
+ * Launch request arguments.
+ */
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-    client?: string;
+    /**
+     * List of allowed apps.
+     */
+    apps?: string[];
+
+    /**
+     * Name of the target clients.
+     */
+    clients?: string[];
+
+    /**
+     * The TCP port.
+     */
     port?: number;
 }
 
@@ -369,7 +389,8 @@ class RemoteDebugSession extends DebugSession {
         // this.log('launchRequest');
 
         this.startServer({
-            client: args.client,
+            apps: args.apps,
+            clients: args.clients,
             completed: () => {
                 me.sendResponse(response);
             },
@@ -491,15 +512,36 @@ class RemoteDebugSession extends DebugSession {
             port = opts.port;
         }
 
-        let client: string = '';
-        if (opts.client) {
-            client = '' + opts.client;
+        // clients
+        let clients: string[] = [];
+        if (opts.clients) {
+            for (let i = 0; i < clients.length; i++) {
+                let c = opts.clients[i];
+                if (!c) {
+                    continue;
+                }
+
+                c = ('' + c).toLowerCase().trim();
+                if ('' !== c) {
+                    clients.push(c);
+                }
+            }
         }
-        if ('' === client) {
-            client = OS.hostname();
-        }
-        if (client) {
-            client = client.toLowerCase().trim();
+
+        // apps
+        let apps: string[] = [];
+        if (opts.apps) {
+            for (let i = 0; i < apps.length; i++) {
+                let a = opts.apps[i];
+                if (!a) {
+                    continue;
+                }
+
+                a = ('' + a).toLowerCase().trim();
+                if ('' !== a) {
+                    apps.push(a);
+                }
+            }
         }
 
         me._currentEntry = -1;
@@ -529,10 +571,36 @@ class RemoteDebugSession extends DebugSession {
                                 let entry: RemoteDebuggerEntry = JSON.parse(json);
                                 if (entry) {
                                     let addEntry = true;
-                                    if (entry.c) {
+
+                                    // check for client
+                                    if (addEntry && entry.c) {
                                         let targetClient = ('' + entry.c).toLowerCase().trim();
                                         if ('' != targetClient) {
-                                            addEntry = targetClient == client;
+                                            if (clients.length > 0) {
+                                                addEntry = false;
+                                                for (let i = 0; i < clients.length; i++) {
+                                                    if (clients[i] == targetClient) {
+                                                        addEntry = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // check for apps
+                                    if (addEntry && entry.a) {
+                                        let appName = ('' + entry.a).toLowerCase().trim();
+                                        if ('' != appName) {
+                                            if (apps.length > 0) {
+                                                addEntry = false;
+                                                for (let i = 0; i < apps.length; i++) {
+                                                    if (apps[i] == appName) {
+                                                        addEntry = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
 
