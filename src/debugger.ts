@@ -225,20 +225,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
         // this.log('continueRequest');
 
-        var newIndex = this._currentEntry + 1;
-        if (newIndex <= this._entries.length) {
-            this._currentEntry = newIndex;
-        }
-
-        this.sendResponse(response);
-
-        var newEntry = this.entry;
-        if (newEntry) {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
-        }
-        else {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("pause", 1));
-        }
+        this.gotoNextEntry(response);
     }
 
     /**
@@ -361,6 +348,58 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         };
     }
 
+    /**
+     * Goes to the next entry.
+     * 
+     * @param {DebugProtocol.Response} [response] The response to send.
+     */
+    protected gotoNextEntry(response?: DebugProtocol.Response) {
+        // this.log('gotoNextEntry');
+
+        var newIndex = this._currentEntry + 1;
+        if (newIndex <= this._entries.length) {
+            this._currentEntry = newIndex;
+        }
+
+        if (response) {
+            this.sendResponse(response);
+        }
+
+        var newEntry = this.entry;
+        if (newEntry) {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
+        }
+        else {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("pause", 1));
+        }
+    }
+
+    /**
+     * Goes to the previous entry.
+     * 
+     * @param {DebugProtocol.Response} [response] The response to send.
+     */
+    protected gotoPreviousEntry(response?: DebugProtocol.Response) {
+        let newIndex = this._currentEntry - 1;
+
+        if (response) {
+            this.sendResponse(response);
+        }
+
+        if (newIndex >= 0) {
+            this._currentEntry = newIndex;
+            if (this.entry) {
+                this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
+            }
+            else {
+                this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
+            }
+        }
+        else {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
+        }
+    }
+
     /** @inheritdoc */
     protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
         // this.log('initializeRequest');
@@ -403,6 +442,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         });
     }
 
+    /**
+     * Logs a message.
+     * 
+     * @param {any} msg The message to log.
+     */
     protected log(msg) {
         this.sendEvent(new vscode_dbg_adapter.OutputEvent(msg + '\n'));
     }
@@ -411,8 +455,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
         // this.log('nextRequest');
 
-        this.sendResponse(response);
-        this.sendEvent(new vscode_dbg_adapter.TerminatedEvent());
+        this.gotoNextEntry(response);
     }
 
     /** @inheritdoc */
@@ -686,7 +729,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             if (!err) {
                 me._server = newServer;
 
-                me.log('TCP server started on port ' + port + ' for clients "' + clients.join('", "') + '" and apps "' + apps.join('", "') + '"');
+                me.log('TCP server started on port ' + port);
+                me.log('App filters: ' + apps.join(', '));
+                me.log('Client filters: ' + clients.join(', '));
             }
             else {
                 showError(err, "listening");
@@ -706,50 +751,21 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected stepBackRequest(response: DebugProtocol.StepBackResponse, args: DebugProtocol.StepBackArguments): void {
         // this.log('stepBackRequest');
 
-        let newIndex = this._currentEntry - 1;
-
-        this.sendResponse(response);
-
-        if (newIndex >= 0) {
-            this._currentEntry = newIndex;
-            if (this.entry) {
-                this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
-            }
-            else {
-                this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
-            }
-        }
-        else {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
-        }
+        this.gotoPreviousEntry(response);
     }
 
     /** @inheritdoc */
     protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
         // this.log('stepInRequest');
         
-        this.sendResponse(response);
-
-        if (this.entry) {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
-        }
-        else {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
-        }
+        this.gotoNextEntry(response);
     }
 
     /** @inheritdoc */
     protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
-        // this.log('stepInRequest');
+        // this.log('stepOutRequest');
         
-        this.sendResponse(response);
-
-        if (this.entry) {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
-        }
-        else {
-            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
-        }
+        this.gotoPreviousEntry(response);
     }
 
     /** @inheritdoc */
