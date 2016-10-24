@@ -574,6 +574,13 @@ class RemoteDebugger {
         return $value;
     }
 
+    /**
+     * Tries to convert a full path to a relative path.
+     * 
+     * @param string $path The input value.
+     * 
+     * @return string The output value.
+     */
     protected function toRelativePath($path) {
         $normalizedPath = \realpath($path);
         if (\file_exists($normalizedPath)) {
