@@ -524,7 +524,7 @@ class RemoteDebugger {
      */
     protected function makeSerializable($value, &$type = null, $step = null, $maxSteps = 32) {
         if (\func_num_args() < 3) {
-            $depth = 0;
+            $step = 0;
         }
         else {
             if ($step >= $maxSteps) {
