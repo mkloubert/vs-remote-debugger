@@ -36,7 +36,7 @@ If you look at the [example code](https://github.com/mkloubert/vs-remote-debugge
 
 ```php
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
-$debugger->addHost("my.remote.host.or.ip", 5979);
+$debugger->addHost("my.remote.host.or.ip", 23979);
 
 // send the information you want to debug
 $debugger->dbg([
