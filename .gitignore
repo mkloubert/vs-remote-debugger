@@ -4,3 +4,10 @@ node_modules
 /sdk/php/.idea
 /sdk/php/.vscode
 /pushall.sh
+/sdk/dotnet/.vs
+/sdk/dotnet/MarcelJoachimKloubert.RemoteDebugger/obj
+/sdk/dotnet/MarcelJoachimKloubert.RemoteDebugger/bin
+/sdk/dotnet/MarcelJoachimKloubert.RemoteDebugger.Test/obj
+/sdk/dotnet/MarcelJoachimKloubert.RemoteDebugger.Test/.vscode
+/sdk/dotnet/MarcelJoachimKloubert.RemoteDebugger.Test/bin
+/sdk/dotnet/packages

@@ -2,7 +2,7 @@
     "name": "vs-remote-debugger",
     "displayName": "Generic Remote Debugger",
     "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
-    "version": "0.8.0",
+    "version": "0.8.1",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.5.0"
@@ -58,7 +58,7 @@
 					"apps": [],
                     "clients": [],
                     "localSourceRoot": "${workspaceRoot}",
-                    "maxMessageSize": "16777215",
+                    "maxMessageSize": 16777215,
 					"port": 5979
 				}
 			]
