@@ -200,6 +200,18 @@ class RemoteDebugger {
      * @param array $vars The custom variables to send.
      */
     public function dbg($vars = []) {
+        $this->dbgIf(true,
+                     $vars);
+    }
+
+    /**
+     * Sends a debugger message if a condition matches.
+     *
+     * @param bool|callable|null $condition The condition value or the callable that provides it.
+     *                                      (null) is the same as (true).
+     * @param array $vars The custom variables to send.
+     */
+    public function dbgIf($condition, $vars = []) {
         $now = new \DateTime();
         $now->setTimezone(new \DateTimeZone('UTC'));
     
@@ -208,6 +220,17 @@ class RemoteDebugger {
         $callingLine = $backtrace[0];
 
         $filter = $this->EntryFilter;
+
+        if (null === $condition) {
+            $condition = true;
+        }
+
+        if (!\is_callable($condition)) {
+            $conditionValue = $condition;
+            $condition = function() use ($conditionValue) {
+                return $conditionValue;
+            };
+        }
 
         foreach ($this->_hostProviders as $providerIndex => $provider) {
             try {
@@ -221,6 +244,7 @@ class RemoteDebugger {
                     'calling_line' => $callingLine,
                     'debugger' => $this,
                     'host' => $connData,
+                    'me' => $this,
                     'provider' => [ $providerIndex, $provider ],
                     'time' => $now,
                 ];
@@ -233,6 +257,13 @@ class RemoteDebugger {
                     foreach ($vars as $vn => $vv) {
                         $variableItems[] = $this->toVariableEntry($vn, $vv);
                     }
+                }
+
+                $eventData['vars'] = $variableItems;
+
+                if (!$condition($eventData)) {
+                    // condition does NOT match
+                    continue;
                 }
 
                 $entry = [
@@ -586,14 +617,14 @@ class RemoteDebugger {
         if (\file_exists($normalizedPath)) {
             $scriptRoot = $this->unwrapValue($this->ScriptRoot);
             if (empty($scriptRoot)) {
-                $scriptRoot = @\getcwd();
-                if (false === $scriptRoot) {
-                    if (!empty($_SERVER['DOCUMENT_ROOT'])) {
-                        $scriptRoot = \realpath($_SERVER['DOCUMENT_ROOT']);
-                    }
+                // first try DOCUMENT_ROOT
+                if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+                    $scriptRoot = \realpath($_SERVER['DOCUMENT_ROOT']);
                 }
-                else {
-                    $scriptRoot = \realpath($scriptRoot);
+
+                if (!\is_dir($scriptRoot)) {
+                    // now try getcwd() function
+                    $scriptRoot = \realpath(@\getcwd());
                 }
             }
 

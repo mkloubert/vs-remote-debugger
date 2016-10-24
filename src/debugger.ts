@@ -175,9 +175,14 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     clients?: string[];
 
     /**
-     * localSourceRoot
+     * Path of the root directory of the project's sources.
      */
     localSourceRoot: string;
+
+    /**
+     * The maximum size in bytes a debug entry can have.
+     */
+    maxMessageSize?: number;
 
     /**
      * The TCP port.
@@ -393,6 +398,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 me.sendResponse(response);
             },
+            maxMessageSize: args.maxMessageSize,
             port: args.port,
         });
     }
@@ -512,6 +518,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             port = opts.port;
         }
 
+        let maxMsgSize = 16777215;
+        if (opts.maxMessageSize) {
+            maxMsgSize = opts.maxMessageSize;
+        }
+
         // clients
         let clients: string[] = [];
         if (opts.clients) {
@@ -558,73 +569,111 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let newServer = Net.createServer((socket) => {
             try {
+                let closeSocket = () => {
+                    try {
+                        socket.destroy();
+                    }
+                    catch (e) {
+                        showError(e, 'createServer.closeSocket');
+                    }
+                };
+
+                let buff: Buffer;
+
+                let buffOffset = 0;
                 socket.on('data', (data: Buffer) => {
                     try {
                         if (!data || data.length < 1) {
                             return;
                         }
 
-                        let dataLength = data.readUInt32LE(0);
-                        if (dataLength > 0) {
-                            let json = data.toString('utf8', 4, dataLength + 4);
-                            try {
-                                let entry: RemoteDebuggerEntry = JSON.parse(json);
-                                if (entry) {
-                                    let addEntry = true;
+                        let offset = 0;
+                        if (!buff) {
+                            let dataLength = data.readUInt32LE(0);
+                            if (dataLength < 0 || dataLength > maxMsgSize) {
+                                closeSocket();
+                                return;
+                            }
 
-                                    // check for client
-                                    if (addEntry && entry.c) {
-                                        let targetClient = ('' + entry.c).toLowerCase().trim();
-                                        if ('' != targetClient) {
-                                            if (clients.length > 0) {
-                                                addEntry = false;
-                                                for (let i = 0; i < clients.length; i++) {
-                                                    if (clients[i] == targetClient) {
-                                                        addEntry = true;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                            buff = Buffer.alloc(dataLength);
+                            offset = 4;
+                        }
 
-                                    // check for apps
-                                    if (addEntry && entry.a) {
-                                        let appName = ('' + entry.a).toLowerCase().trim();
-                                        if ('' != appName) {
-                                            if (apps.length > 0) {
-                                                addEntry = false;
-                                                for (let i = 0; i < apps.length; i++) {
-                                                    if (apps[i] == appName) {
-                                                        addEntry = true;
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                        buffOffset += data.copy(buff, buffOffset,
+                                                offset);
+                    }
+                    catch (e) {
+                        showError(e, 'createServer.data');
 
-                                    if (addEntry) {
-                                        let makeStep = !me.entry ? true : false;
+                        closeSocket();
+                    }
+                });
 
-                                        me._entries.push(entry);
+                socket.on('end', () => {
+                    try {
+                        if (!buff || buff.length < 1) {
+                            return;
+                        }
 
-                                        if (makeStep) {
-                                            // select last entry
+                        let json = buff.toString('utf8');
 
-                                            me._currentEntry = this._entries.length - 1;
-                                            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
+                        let entry: RemoteDebuggerEntry = JSON.parse(json);
+                        if (!entry) {
+                            return;
+                        }
+
+                        let addEntry = true;
+
+                        // check for client
+                        if (addEntry && entry.c) {
+                            let targetClient = ('' + entry.c).toLowerCase().trim();
+                            if ('' != targetClient) {
+                                if (clients.length > 0) {
+                                    addEntry = false;
+                                    for (let i = 0; i < clients.length; i++) {
+                                        if (clients[i] == targetClient) {
+                                            addEntry = true;
+                                            break;
                                         }
                                     }
                                 }
                             }
-                            catch (e) {
-                                showError(e, "createServer.data.2");
+                        }
+
+                        // check for apps
+                        if (addEntry && entry.a) {
+                            let appName = ('' + entry.a).toLowerCase().trim();
+                            if ('' != appName) {
+                                if (apps.length > 0) {
+                                    addEntry = false;
+                                    for (let i = 0; i < apps.length; i++) {
+                                        if (apps[i] == appName) {
+                                            addEntry = true;
+                                            break;
+                                        }
+                                    }
+                                }
                             }
                         }
+
+                        if (!addEntry) {
+                            return;
+                        }
+
+                        let makeStep = !me.entry ? true : false;
+                        
+                        me._entries.push(entry);
+                        
+                        if (!makeStep) {
+                            return;
+                        }
+
+                        // select last entry
+                        me._currentEntry = me._entries.length - 1;
+                        me.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
                     }
                     catch (e) {
-                        showError(e, "createServer.data.1");
+                        showError(e, 'createServer.end');
                     }
                 });
             }
