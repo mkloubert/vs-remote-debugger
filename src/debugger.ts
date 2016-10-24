@@ -18,22 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import {
-    Breakpoint,
-	BreakpointEvent,
-    ContinuedEvent,
-	DebugSession,
-    Event,
-	Handles,
-	InitializedEvent,
-	OutputEvent, 
-	Scope,
-	Source,
-	StackFrame,
-	StoppedEvent,
-	TerminatedEvent,
-    Thread,
-} from 'vscode-debugadapter';
+import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import Net = require('net');
@@ -203,7 +188,7 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 /**
  * A debugger session.
  */
-class RemoteDebugSession extends DebugSession {
+class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * The current entry.
      */
@@ -240,13 +225,15 @@ class RemoteDebugSession extends DebugSession {
             this._currentEntry = newIndex;
         }
 
+        this.sendResponse(response);
+
         var newEntry = this.entry;
         if (newEntry) {
-            this.sendEvent(new ContinuedEvent(1));
-            this.sendEvent(new StoppedEvent("step", 1));
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
         }
-
-        this.sendResponse(response);
+        else {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("pause", 1));
+        }
     }
 
     /**
@@ -371,10 +358,6 @@ class RemoteDebugSession extends DebugSession {
 
     /** @inheritdoc */
     protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
-        // this.log('initializeRequest');
-        
-        this.sendEvent(new InitializedEvent());
-
         response.body.supportsConfigurationDoneRequest = true;
 
         response.body.supportsCompletionsRequest = false;
@@ -390,6 +373,8 @@ class RemoteDebugSession extends DebugSession {
         response.body.supportsStepInTargetsRequest = false;
 
         this.sendResponse(response);
+
+        this.log('initializeRequest');
     }
 
     /** @inheritdoc */
@@ -404,6 +389,8 @@ class RemoteDebugSession extends DebugSession {
             apps: args.apps,
             clients: args.clients,
             completed: () => {
+                me.sendEvent(new vscode_dbg_adapter.InitializedEvent());
+
                 me.sendResponse(response);
             },
             port: args.port,
@@ -411,7 +398,7 @@ class RemoteDebugSession extends DebugSession {
     }
 
     protected log(msg) {
-        this.sendEvent(new OutputEvent(msg + '\n'));
+        this.sendEvent(new vscode_dbg_adapter.OutputEvent(msg + '\n'));
     }
 
     /** @inheritdoc */
@@ -419,7 +406,7 @@ class RemoteDebugSession extends DebugSession {
         // this.log('nextRequest');
 
         this.sendResponse(response);
-        this.sendEvent(new TerminatedEvent());
+        this.sendEvent(new vscode_dbg_adapter.TerminatedEvent());
     }
 
     /** @inheritdoc */
@@ -431,11 +418,14 @@ class RemoteDebugSession extends DebugSession {
     protected scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments): void {
         // this.log('scopesRequest');
 
-        const SCOPES = new Array<Scope>();
+        const SCOPES: vscode_dbg_adapter.Scope[] = [];
 
         let entry = this.entry;
         if (entry && entry.s)
         {
+            let index = this._currentEntry;
+            let entryCount = this._entries.length;
+
             for (let i = 0; i < entry.s.length; i++) {
                 let sf = entry.s[i];
                 if (!sf) {
@@ -450,7 +440,13 @@ class RemoteDebugSession extends DebugSession {
                                 continue;
                             }
 
-                            SCOPES.push(new Scope(s.n, s.r));
+                            let name = s.n;
+                            if (!name) {
+                                name = '';
+                            }
+
+                            SCOPES.push(new vscode_dbg_adapter.Scope(`${name} (${index + 1} / ${entryCount})`,
+                                                                     s.r));
                         }
                     }
                 }
@@ -465,24 +461,10 @@ class RemoteDebugSession extends DebugSession {
     }
 
     /** @inheritdoc */
-    protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
-        // this.log('setBreakPointsRequest');
-
-        let breakpoints = new Array<Breakpoint>();
-
-        // send back the actual breakpoint positions
-        response.body = {
-            breakpoints: breakpoints
-        };
-
-        this.sendResponse(response);
-    }
-
-    /** @inheritdoc */
     protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
         // this.log('stackTraceRequest');
 
-        const FRAMES = new Array<StackFrame>();
+        const FRAMES: vscode_dbg_adapter.StackFrame[] = [];
 
         let entry = this.entry;
         if (entry && entry.s) {
@@ -492,18 +474,18 @@ class RemoteDebugSession extends DebugSession {
                     continue;
                 }
 
-                let src: Source;
+                let src: vscode_dbg_adapter.Source;
                 if (sf.f) {
                     let fileName: string = sf.fn;
                     if (!fileName) {
                         fileName = basename(sf.f);
                     }
 
-                    src = new Source(fileName,
-                                     Path.join(this._sourceRoot, sf.f));
+                    src = new vscode_dbg_adapter.Source(fileName,
+                                                        Path.join(this._sourceRoot, sf.f));
                 }
 
-                FRAMES.push(new StackFrame(sf.i, sf.n, src, sf.l));
+                FRAMES.push(new vscode_dbg_adapter.StackFrame(sf.i, sf.n, src, sf.l));
             }
         }
 
@@ -623,13 +605,15 @@ class RemoteDebugSession extends DebugSession {
                                     }
 
                                     if (addEntry) {
+                                        let makeStep = !me.entry ? true : false;
+
                                         me._entries.push(entry);
 
-                                        if (!me.entry) {
+                                        if (makeStep) {
                                             // select last entry
 
                                             me._currentEntry = this._entries.length - 1;
-                                            this.sendEvent(new StoppedEvent("step", 1));
+                                            this.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
                                         }
                                     }
                                 }
@@ -673,12 +657,55 @@ class RemoteDebugSession extends DebugSession {
     protected stepBackRequest(response: DebugProtocol.StepBackResponse, args: DebugProtocol.StepBackArguments): void {
         // this.log('stepBackRequest');
 
+        let newIndex = this._currentEntry - 1;
+
         this.sendResponse(response);
+
+        if (newIndex >= 0) {
+            this._currentEntry = newIndex;
+            if (this.entry) {
+                this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
+            }
+            else {
+                this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
+            }
+        }
+        else {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
+        }
+    }
+
+    /** @inheritdoc */
+    protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
+        // this.log('stepInRequest');
+        
+        this.sendResponse(response);
+
+        if (this.entry) {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
+        }
+        else {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
+        }
+    }
+
+    /** @inheritdoc */
+    protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
+        // this.log('stepInRequest');
+        
+        this.sendResponse(response);
+
+        if (this.entry) {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('step', 1));
+        }
+        else {
+            this.sendEvent(new vscode_dbg_adapter.StoppedEvent('pause', 1));
+        }
     }
 
     /** @inheritdoc */
     protected stopServer() {
-        this.log('stopServer');
+        // this.log('stopServer');
 
 		let me = this;
 
@@ -721,7 +748,7 @@ class RemoteDebugSession extends DebugSession {
                     continue;
                 }
 
-                THREADS.push(new Thread(t.i, t.n));
+                THREADS.push(new vscode_dbg_adapter.Thread(t.i, t.n));
             }
         }
 
@@ -808,4 +835,4 @@ class RemoteDebugSession extends DebugSession {
     }
 }
 
-DebugSession.run(RemoteDebugSession);
+vscode_dbg_adapter.DebugSession.run(RemoteDebugSession);
