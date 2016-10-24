@@ -198,10 +198,12 @@ class RemoteDebugger {
      * Sends a debugger message.
      *
      * @param array $vars The custom variables to send.
+     * @param int $skipFrames The number of stack frames to skip.
      */
-    public function dbg($vars = []) {
+    public function dbg($vars = [], $skipFrames = 0) {
         $this->dbgIf(true,
-                     $vars);
+                     $vars,
+                     $skipFrames + 1);
     }
 
     /**
@@ -210,8 +212,9 @@ class RemoteDebugger {
      * @param bool|callable|null $condition The condition value or the callable that provides it.
      *                                      (null) is the same as (true).
      * @param array $vars The custom variables to send.
+     * @param int $skipFrames The number of stack frames to skip.
      */
-    public function dbgIf($condition, $vars = []) {
+    public function dbgIf($condition, $vars = [], $skipFrames = 0) {
         $now = new \DateTime();
         $now->setTimezone(new \DateTimeZone('UTC'));
     
@@ -228,7 +231,7 @@ class RemoteDebugger {
         if (!\is_callable($condition)) {
             $conditionValue = $condition;
             $condition = function() use ($conditionValue) {
-                return $conditionValue;
+                return $conditionValue ? true : false;
             };
         }
 
@@ -261,7 +264,7 @@ class RemoteDebugger {
 
                 $eventData['vars'] = $variableItems;
 
-                if (!$condition($eventData)) {
+                if (false === $condition($eventData)) {
                     // condition does NOT match
                     continue;
                 }
@@ -292,6 +295,10 @@ class RemoteDebugger {
 
                 $nextScopeRef = 0;
                 foreach ($backtrace as $i => $bt) {
+                    if ($i < $skipFrames) {
+                        continue;
+                    }
+
                     if (empty($bt)) {
                         continue;
                     }
