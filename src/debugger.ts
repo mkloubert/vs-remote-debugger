@@ -363,6 +363,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
     /** @inheritdoc */
     protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
+        // this.log('initializeRequest');
+        
         response.body.supportsConfigurationDoneRequest = true;
 
         response.body.supportsCompletionsRequest = false;
@@ -378,15 +380,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         response.body.supportsStepInTargetsRequest = false;
 
         this.sendResponse(response);
-
-        this.log('initializeRequest');
     }
 
     /** @inheritdoc */
     protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
-        let me = this;
-        
         // this.log('launchRequest');
+        
+        let me = this;
 
         me._sourceRoot = args.localSourceRoot;
 
