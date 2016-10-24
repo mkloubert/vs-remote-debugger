@@ -26,7 +26,9 @@ And start debugging:
 
 ![Install screenshot 2](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-3.png)
 
-## Usage PHP
+## Usage
+
+### PHP
 
 Install the [RemoteDebugger.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) in your application.
 
