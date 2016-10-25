@@ -224,6 +224,12 @@ class RemoteDebugger {
         $now = new \DateTime();
         $now->setTimezone(new \DateTimeZone('UTC'));
 
+        if (!empty($vars)) {
+            if (!\is_array($vars)) {
+                $vars = \iterator_to_array($vars);
+            }
+        }
+
         $backtrace = \debug_backtrace();
 
         $callingLine = $backtrace[0 + $skipFrames];
@@ -267,18 +273,18 @@ class RemoteDebugger {
             try {
                 $nextVarRef = 1;
 
-                $variableItems = null;
+                $debuggerVars = null;
                 if (!empty($vars)) {
                     // collect variables
 
-                    $variableItems = [];
+                    $debuggerVars = [];
                     foreach ($vars as $vn => $vv) {
-                        $variableItems[] = $this->toVariableEntry('$' . $vn, $vv,
-                                                                  0, $nextVarRef);
+                        $debuggerVars[] = $this->toVariableEntry('$' . $vn, $vv,
+                                                                 0, $nextVarRef);
                     }
                 }
 
-                $eventData['vars'] = $variableItems;
+                $eventData['vars'] = $debuggerVars;
 
                 $eventData['condition'] = false !== $condition($eventData);
                 if (!$eventData['condition']) {
@@ -289,7 +295,7 @@ class RemoteDebugger {
                 $entry = [
                     't' => [],
                     's' => [],
-                    'v' => $variableItems,
+                    'v' => $debuggerVars,
                 ];
 
                 $client = $this->unwrapValue($this->TargetClient, $eventData);
