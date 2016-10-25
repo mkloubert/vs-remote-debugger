@@ -341,9 +341,10 @@ namespace MarcelJoachimKloubert
                             }
                             catch { };
                             
-                            var json = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(entry));
+                            var json = JsonConvert.SerializeObject(entry);
+                            var jsonBlob = Encoding.UTF8.GetBytes(json);
 
-                            var dataLength = BitConverter.GetBytes((uint)json.Length);
+                            var dataLength = BitConverter.GetBytes((uint)jsonBlob.Length);
                             if (!BitConverter.IsLittleEndian)
                             {
                                 // big endian
@@ -358,7 +359,7 @@ namespace MarcelJoachimKloubert
                                 using (var ns = client.GetStream())
                                 {
                                     ns.Write(dataLength, 0, dataLength.Length);
-                                    ns.Write(json, 0, json.Length);
+                                    ns.Write(jsonBlob, 0, jsonBlob.Length);
 
                                     ns.Flush();
                                 }
