@@ -285,7 +285,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let t = ve.t;
         let v = ve.v;
 
-        switch (('' + ve.t).toLowerCase().trim()) {
+        switch (this.normalizeType(ve.t)) {
             case 'array':
                 t = "string";
                 
@@ -425,6 +425,21 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         }
 
         this.gotoIndex(this._currentEntry + steps, response);
+    }
+
+    /**
+     * Normalizes a type name.
+     * 
+     * @param {String} [type] The input value.
+     * 
+     * @return {String} The output value.
+     */
+    protected normalizeType(type?: string): string {
+        if (!type) {
+            return type;
+        }
+
+        return ('' + type).toLowerCase().trim();
     }
 
     /** @inheritdoc */
@@ -865,14 +880,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         
                         // first check if special type
                         if (!foundChildren) {
-                            switch (('' + ve.t).toLowerCase().trim()) {
+                            switch (me.normalizeType(ve.t)) {
                                 case 'array':
                                 case 'function':
                                 case 'object':
-                                    if (ve.r == args.variablesReference) {
-                                        foundChildren = ve.v;
-                                    }
-
                                     if (!foundChildren && ve.v) {
                                         for (let i = 0; i < ve.v.length; i++) {
                                             foundChildren = findChildVariables(ve.v[i]);
@@ -915,7 +926,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 if (!vars && entry.v) {
                     for (let i = 0; i < entry.v.length; i++) {
-                        vars = findChildVariables(entry.v[i]);
+                        let ve = entry.v[i];
+                        vars = findChildVariables(ve);
+
                         if (vars) {
                             break;
                         }

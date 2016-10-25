@@ -453,15 +453,15 @@ class RemoteDebugger {
                                 if ($func instanceof \ReflectionFunctionAbstract) {
                                     $parameters = $func->getParameters();
                                     if (!empty($parameters[$vn])) {
-                                        $argName = $parameters[$vn]->getName();
+                                        $argName = '$' . $parameters[$vn]->getName();
                                     }
                                 }
                                 else {
-                                    $argName = 'arg' . $vn;
+                                    $argName = '(arg' . $vn . ')';
                                 }
                             }
 
-                            $stackFrame['s'][0]['v'][] = $this->toVariableEntry('$' . $argName, $vv,
+                            $stackFrame['s'][0]['v'][] = $this->toVariableEntry($argName, $vv,
                                                                                 0, $nextVarRef);
                         }
                     }
@@ -616,7 +616,7 @@ class RemoteDebugger {
 
                         $type = 'array';
                         foreach ($value as $k => $v) {
-                            $obj[] = $this->toVariableEntry($k, $v,
+                            $obj[] = $this->toVariableEntry('[' . $k . ']', $v,
                                                             0, $nextVarRef,
                                                             $step + 1, $maxSteps);
                         }
@@ -640,9 +640,26 @@ class RemoteDebugger {
 
                                 $entry['fn'] = $func->getName();
 
-                                // get properties
+                                // get parameters
                                 foreach ($func->getParameters() as $fp) {
-                                    $obj[] = $this->toVariableEntry('$' . $fp->getName(), $fp->isOptional() ? $fp->getDefaultValue() : '',
+                                    $paramName = '$' . $fp->getName();
+                                    if ($fp->isPassedByReference()) {
+                                        $paramName = '&' . $paramName;
+                                    }
+
+                                    if ($fp->isOptional()) {
+                                        $paramName = '[' . $paramName . ']';
+                                    }
+
+                                    $paramType = '(mixed)';
+                                    if ($fp->isCallable()) {
+                                        $paramType = '(callable)';
+                                    }
+                                    else if ($fp->isArray()) {
+                                        $paramType = '(array)';
+                                    }
+
+                                    $obj[] = $this->toVariableEntry($paramName, $paramType,
                                                                     0, $nextVarRef,
                                                                     $step + 1, $maxSteps);
                                 }
@@ -657,9 +674,25 @@ class RemoteDebugger {
                             {
                                 $entry['on'] = @\get_class($value);
 
+                                $ro = new \ReflectionObject($value);
+
                                 // get properties
-                                foreach (\get_object_vars($value) as $k => $v) {
-                                    $obj[] = $this->toVariableEntry('$' . $k, $v,
+                                $objProps = $ro->getProperties();
+                                \usort($objProps, function(\ReflectionProperty $x, \ReflectionProperty $y) {
+                                    return \strcasecmp($x->getName(), $y->getName());
+                                });
+                                foreach ($objProps as $prop) {
+                                    /* @var \ReflectionProperty $prop */
+
+                                    $prop->setAccessible(true);
+                                    if ($prop->isStatic()) {
+                                        $propValueRef = null;
+                                    }
+                                    else {
+                                        $propValueRef = $value;
+                                    }
+
+                                    $obj[] = $this->toVariableEntry('$' . $prop->getName(), $prop->getValue($propValueRef),
                                                                     0, $nextVarRef,
                                                                     $step + 1, $maxSteps);
                                 }

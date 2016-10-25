@@ -23,6 +23,9 @@ function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
         ],
         'i' => $obj,
         'j' => [ 'MK', 'TM' ],
+        'k' => function($a, callable $b, array &$c = []) {
+
+        }
     ]);
 
     $debugger->dbgIf(true, [
