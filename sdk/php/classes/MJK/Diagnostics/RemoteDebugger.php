@@ -91,6 +91,12 @@ class RemoteDebugger {
      */
     public $EntryFilter;
     /**
+     * A callable that is occurred if an exception is raised.
+     *
+     * @var callable
+     */
+    public $ErrorHandler;
+    /**
      * The path of the script root or the callable that provides it.
      *
      * @var callable|string
@@ -217,10 +223,10 @@ class RemoteDebugger {
     public function dbgIf($condition, $vars = [], $skipFrames = 0) {
         $now = new \DateTime();
         $now->setTimezone(new \DateTimeZone('UTC'));
-    
+
         $backtrace = \debug_backtrace();
 
-        $callingLine = $backtrace[0];
+        $callingLine = $backtrace[0 + $skipFrames];
 
         $filter = $this->EntryFilter;
 
@@ -235,22 +241,31 @@ class RemoteDebugger {
             };
         }
 
-        foreach ($this->_hostProviders as $providerIndex => $provider) {
-            try {
-                $connData = $provider($this);
-                if (empty($connData)) {
-                    continue;
-                }
+        $errHandler = $this->ErrorHandler;
+        $handleError = function($type, $err, $eventData) use ($errHandler) {
+            if ($errHandler) {
+                $errHandler($type, $err, $eventData);
+            }
+        };
 
-                $eventData = [
-                    'backtrace' => $backtrace,
-                    'calling_line' => $callingLine,
-                    'debugger' => $this,
-                    'host' => $connData,
-                    'me' => $this,
-                    'provider' => [ $providerIndex, $provider ],
-                    'time' => $now,
-                ];
+        foreach ($this->_hostProviders as $providerIndex => $provider) {
+            $connData = $provider($this);
+            if (empty($connData)) {
+                continue;
+            }
+
+            $eventData = [
+                'backtrace' => $backtrace,
+                'calling_line' => $callingLine,
+                'debugger' => $this,
+                'host' => $connData,
+                'me' => $this,
+                'provider' => [ $providerIndex, $provider ],
+                'time' => $now,
+            ];
+
+            try {
+                $nextVarRef = 1;
 
                 $variableItems = null;
                 if (!empty($vars)) {
@@ -258,13 +273,15 @@ class RemoteDebugger {
 
                     $variableItems = [];
                     foreach ($vars as $vn => $vv) {
-                        $variableItems[] = $this->toVariableEntry($vn, $vv);
+                        $variableItems[] = $this->toVariableEntry('$' . $vn, $vv,
+                                                                  0, $nextVarRef);
                     }
                 }
 
                 $eventData['vars'] = $variableItems;
 
-                if (false === $condition($eventData)) {
+                $eventData['condition'] = false !== $condition($eventData);
+                if (!$eventData['condition']) {
                     // condition does NOT match
                     continue;
                 }
@@ -293,7 +310,6 @@ class RemoteDebugger {
                     ];
                 }
 
-                $nextScopeRef = 0;
                 foreach ($backtrace as $i => $bt) {
                     if ($i < $skipFrames) {
                         continue;
@@ -377,14 +393,6 @@ class RemoteDebugger {
                     else {
                         if (!empty($bt['function'])) {
                             $stackFrame['n'] = $bt['function'];
-
-                            switch ($stackFrame['n']) {
-                                case 'include':
-                                case 'include_once':
-                                case 'require':
-                                case 'require_once':
-                                    break;
-                            }
                         }
                     }
 
@@ -407,18 +415,17 @@ class RemoteDebugger {
                     }
 
                     // scopes of current frame
-                    ++$nextScopeRef;
                     $stackFrame['s'] = [
                         // current function
                         [
                             'n' => $sfCurrentFunc,
-                            'r' => $nextScopeRef * 2,
+                            'r' => ++$nextVarRef,
                         ],
 
                         // debugger
                         [
                             'n' => $sfDebugger,
-                            'r' => $nextScopeRef * 2 + 1,
+                            'r' => 1,
                         ],
                     ];
 
@@ -454,8 +461,8 @@ class RemoteDebugger {
                                 }
                             }
 
-                            $stackFrame['s'][0]['v'][] = $this->toVariableEntry($argName,
-                                                                                $vv);
+                            $stackFrame['s'][0]['v'][] = $this->toVariableEntry('$' . $argName, $vv,
+                                                                                0, $nextVarRef);
                         }
                     }
 
@@ -475,27 +482,47 @@ class RemoteDebugger {
                 }
 
                 $json = @\json_encode($entry);
+                // echo @\json_encode($entry, JSON_PRETTY_PRINT);
+
                 if (false !== $json) {
                     $fp = @\fsockopen($connData[0], $connData[1], $errno, $errstr, $connData[2]);
                     if (\is_resource($fp)) {
                         try {
-                            \fwrite($fp, \pack('V', \strlen($json)));
-                            \fwrite($fp, $json);
+                            if (false !== @\fwrite($fp, \pack('V', \strlen($json)))) {
+                                if (false === @\fwrite($fp, $json)) {
+                                    // could not send JSON
+                                    $handleError('send.json',
+                                                 @\error_get_last(),
+                                                 $eventData);
+                                }
+                            }
+                            else {
+                                // could not send data length
+                                $handleError('send.datalength',
+                                             @\error_get_last(),
+                                             $eventData);
+                            }
                         }
                         finally {
-                            \fclose($fp);
+                            @\fclose($fp);
                         }
                     }
                     else {
-                        //TODO: log
+                        // connection error
+                        $handleError('connection',
+                                     [$errno, $errstr],
+                                     $eventData);
                     }
                 }
                 else {
-                    //TODO: log
+                    // JSON error
+                    $handleError('json',
+                                 [@\json_last_error(), @\json_last_error_msg()],
+                                 $eventData);
                 }
             }
             catch (\Exception $ex) {
-
+                $handleError('exception', $ex, $eventData);
             }
         }
     }
@@ -510,106 +537,6 @@ class RemoteDebugger {
     protected function isCallable($val) {
         return !empty($val) &&
                (($val instanceof \Closure) || (\is_array($val) && \is_callable($val)));
-    }
-
-    /**
-     * Makes a value serializable for the remote debugger.
-     *
-     * @param mixed $value The input value.
-     * @param mixed &$type The value type.
-     * @param int $step The current step (only for internal use).
-     * @param int $maxSteps Maximum steps (only for internal use).
-     *
-     * @return string The output value.
-     */
-    protected function makeSerializable($value, &$type = null, $step = null, $maxSteps = 32) {
-        if (\func_num_args() < 3) {
-            $step = 0;
-        }
-        else {
-            if ($step >= $maxSteps) {
-                // prevent stack overflows
-
-                $type = 'string';
-                return '###TOO DEEP###';
-            }
-        }
-
-        if (null !== $value) {
-            switch (\gettype($value)) {
-                case 'array':
-                    $arr = $value;
-                    $value = [
-                        'type' => 'array',
-                        'value' => @\json_encode($arr),
-                    ];
-                    break;
-
-                case 'boolean':
-                    $type = 'string';
-                    $value = $value ? 'true' : 'false';
-                    break;
-
-                case 'integer':
-                    $type = 'integer';
-                    $value = (string)$value;
-                    break;
-
-                case 'double':
-                    $type = 'float';
-                    $value = (string)$value;
-                    break;
-
-                case 'object':
-                    $objInstance = $value;
-                    $obj = new \ReflectionObject($objInstance);
-
-                    $value = [
-                        'type' => 'object',
-                        'name' => $obj->getName(),
-                    ];
-
-                    $properties = $obj->getProperties();
-                    if (!empty($properties)) {
-                        $value['fields'] = [];
-                        foreach ($properties as $p) {
-                            $p->setAccessible(true);
-
-                            $value['fields'][$p->getName()] = $this->makeSerializable($p->getValue($objInstance),
-                                                                                      $type2,
-                                                                                      $step + 1);
-                        }
-                    }
-                    break;
-
-                case 'string':
-                    $value = (string)$value;
-                    break;
-
-                default:
-                    $value = @\serialize($value);
-                    break;
-            }
-        }
-
-        if (\is_array($value)) {
-            $type = 'object';
-
-            $newValue = [];
-            foreach ($value as $k => $v) {
-                $newValue[$this->makeSerializable($k, $type2, $step + 1)] =
-                    $this->makeSerializable($v, $type2, $step + 1);
-            }
-
-            $value = @\json_encode($newValue);
-            unset($newValue);
-
-            if (false !== $value) {
-                $value = @\json_decode($value, true);
-            }
-        }
-
-        return $value;
     }
 
     /**
@@ -654,17 +581,85 @@ class RemoteDebugger {
      *
      * @return array The created entry.
      */
-    protected function toVariableEntry($name, $value) {
+    protected function toVariableEntry($name, $value,
+                                       $ref = 0, &$nextVarRef = 0,
+                                       $step = null, $maxSteps = 32) {
+        if (\func_num_args() < 4) {
+            $step = 0;
+        }
+
         $type = 'string';
-        $value = $this->makeSerializable($value, $type);
+
+        if ($step < $maxSteps) {
+            if (null !== $value) {
+                switch (\gettype($value)) {
+                    case 'boolean':
+                        $value = $value ? 'true': 'false';
+                        break;
+
+                    case 'double':
+                        $type = 'float';
+                        $value = (string)$value;
+                        break;
+
+                    case 'integer':
+                        $type = 'integer';
+                        $value = (string)$value;
+                        break;
+
+                    case 'array':
+                        $ref = (int)(string)++$nextVarRef;
+                        
+                        $obj = [];
+                        $type = 'object';
+                        foreach ($value as $k => $v) {
+                            $obj[] = $this->toVariableEntry($k, $v,
+                                                            0, $nextVarRef,
+                                                            $step + 1, $maxSteps);
+                        }
+                        $value = &$obj;
+                        break;
+
+                    case 'object':
+                        if ($value instanceof \Traversable) {
+                            // handle as array
+                            return $this->toVariableEntry($name, \iterator_to_array($avle),
+                                                          $ref, $nextVarRef,
+                                                          $step, $maxSteps);
+                        }
+                        else {
+                            $ref = (int)(string)++$nextVarRef;
+
+                            $obj = [];
+                            $type = 'object';
+                            {
+                                // get properties
+                                foreach (\get_object_vars($value) as $k => $v) {
+                                    $obj[] = $this->toVariableEntry('$' . $k, $v,
+                                                                    0, $nextVarRef,
+                                                                    $step + 1, $maxSteps);
+                                }
+                            }
+                            $value = &$obj;
+                        }
+                        break;
+                }
+            }
+        }
+        else {
+            // TOO deep
+
+            $type = 'string';
+            $value = '###TOO DEEP###';
+        }
 
         if (null !== $value && 'string' === $type) {
             $value = (string)$value;
         }
 
         return [
-            'n' => '$' . $name,
-            'r' => 0,
+            'n' => (string)$name,
+            'r' => $ref,
             't' => $type,
             'v' => $value,
         ];

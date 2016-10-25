@@ -6,4 +6,8 @@ $debugger = new \MJK\Diagnostics\RemoteDebugger();
 $debugger->ScriptRoot = __DIR__;
 $debugger->addHost("localhost", 23979);
 
+$debugger->ErrorHandler = function($type, $err, $eventData) {
+    echo 'ERROR!';
+};
+
 MyClass::staticTestMethod($debugger);

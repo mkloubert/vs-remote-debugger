@@ -5,6 +5,10 @@ define('MJK_REMOTE_DBG_TEST', 1);
 require './config.inc.php';
 
 function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
+    $obj = new \stdClass();
+    $obj->i1 = 0.1;
+    $obj->i2 = "123";
+    
     $debugger->dbg([
         'a' => date('Y-m-d H:i:s'),
         'b' => 1,
@@ -13,6 +17,11 @@ function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
         'e' => false,
         'f' => null,
         'g' => true,
+        'h' => [
+            'h1' => 0,
+            'h2' => 1.2,
+        ],
+        'i' => $obj,
     ]);
 
     $debugger->dbgIf(true, [

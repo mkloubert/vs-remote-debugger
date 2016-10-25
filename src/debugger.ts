@@ -307,44 +307,30 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     }
 
     /**
-     * Extracts value and type of a variable entry.
+     * Returns the value and type of a variable.
      * 
-     * @param RemoteDebuggerVariable [ve] The entry.
+     * @param {RemoteDebuggerVariable} [ve] The variable.
      * 
-     * @return {Object} The extracted data.
+     * @return {Object} The type and display.
      */
-    protected getVariableValue(ve?: RemoteDebuggerVariable): { type: string, value: string } {
+    protected getVariablesValue(ve?: RemoteDebuggerVariable): { type?: string, value?: any } {
         if (!ve) {
-            return;
+            return { };
         }
 
-        let value: any = ve.v;
+        let t = ve.t;
+        let v = ve.v;
 
-        let type: string = ve.t;
-        if (value) {
-            if (type) {
-                switch (('' + type).toLowerCase().trim()) {
-                    case 'object':
-                        let newValue = value;
-                        try {
-                            newValue = JSON.stringify(newValue);
-                        }
-                        catch (e) {
-                            newValue = '###COULD NOT PARSE VALUE### => ' + e;
-                        }
-                        value = newValue;
-                        break;
-
-                    default:
-                        value = '' + value;
-                        break;
-                }
-            }
+        switch (('' + ve.t).toLowerCase().trim()) {
+            case 'object':
+                t = "string";
+                v = "[OBJECT]";
+                break;
         }
-
+        
         return {
-            type: type,
-            value: value,
+            type: t,
+            value: v,
         };
     }
 
@@ -838,15 +824,15 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
     /** @inheritdoc */
     protected variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): void {
-        // this.log('variablesRequest');
+        // this.log('variablesRequest: ' + args.variablesReference);
 
         let me = this;
 
         const VARIABLES: DebugProtocol.Variable[] = [];
 
-        let addVariables = (v?: RemoteDebuggerVariable[]) => {
+        let addVariables = (v?: RemoteDebuggerVariable[]): boolean => {
             if (!v) {
-                return;
+                return false;
             }
 
             for (let i = 0; i < v.length; i++) {
@@ -855,7 +841,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     continue;
                 }
 
-                let vd = me.getVariableValue(ve);
+                let vd = me.getVariablesValue(ve);
 
                 VARIABLES.push({
                     name: ve.n,
@@ -864,41 +850,136 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     variablesReference: ve.r,
                 });
             }
+
+            return true;
         };
 
         let entry = this.entry;
         
-        if (0 == args.variablesReference % 2) {
-            if (entry && entry.s)
-            {
-                // search in stackframes
-                for (let i = 0; i < entry.s.length; i++) {
-                    let sf = entry.s[i];
-                    if (!sf) {
-                        continue;
-                    }
-
-                    if (!sf.s) {
-                        continue;
-                    }
-
-                    // search scopes in current stackframes
-                    for (let j = 0; j < sf.s.length; j++) {
-                        let s = sf.s[j];
-                        if (!s) {
-                            continue;
+        if (1 != args.variablesReference) {
+            let findChildVariables: (ve?: RemoteDebuggerVariable) => RemoteDebuggerVariable[];
+            findChildVariables = (ve?) => {
+                if (ve) {
+                    if (ve.r > 1) {
+                        if (ve.r == args.variablesReference) {
+                            return ve.v;
                         }
 
-                        if (s.r != args.variablesReference) {
-                            continue;
+                        let foundChildren: RemoteDebuggerVariable[];
+                        
+                        // first check if object
+                        if (!foundChildren) {
+                            switch (('' + ve.t).toLowerCase().trim()) {
+                                case 'object':
+                                    if (ve.r == args.variablesReference) {
+                                        foundChildren = ve.v;
+                                    }
+
+                                    if (!foundChildren && ve.v) {
+                                        for (let i = 0; i < ve.v.length; i++) {
+                                            foundChildren = findChildVariables(ve.v[i]);
+                                            if (foundChildren) {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    break;
+                            }
                         }
 
-                        addVariables(s.v);
+                        if (!foundChildren) {
+                            // now search for children
+
+                            let children: RemoteDebuggerVariable[] = ve.v;
+                            if (children) {
+                                for (let i = 0; i < children.length; i++) {
+                                    let c = children[i];
+
+                                    foundChildren = findChildVariables(c);
+                                    if (foundChildren) {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (foundChildren) {
+                            return foundChildren;
+                        }
                     }
                 }
+
+                return null;
+            };
+
+            if (entry) {
+                let vars: RemoteDebuggerVariable[];
+
+                if (!vars && entry.v) {
+                    for (let i = 0; i < entry.v.length; i++) {
+                        vars = findChildVariables(entry.v[i]);
+                        if (vars) {
+                            break;
+                        }
+                    }
+                }
+
+                if (!vars && entry.s) {
+                    // search in stack frames
+                    for (let i = 0; i < entry.s.length; i++) {
+                        let sf = entry.s[i];
+                        if (!sf) {
+                            continue;
+                        }
+
+                        // search in frame variables
+                        if (sf.v) {
+                            for (let j = 0; j < sf.v.length; j++) {
+                                vars = findChildVariables(sf.v[j]);
+                                if (vars) {
+                                    break;
+                                }
+                            }
+                        }
+
+                        // now search in scopes
+                        if (!vars && sf.s) {
+                            for (let j = 0; j < sf.s.length; j++) {
+                                let s = sf.s[j];
+                                if (!s) {
+                                    continue;
+                                }
+
+                                // scope itself
+                                if (s.r == args.variablesReference) {
+                                    vars = s.v;
+                                    break;
+                                }
+
+                                // its variables
+                                if (s.v) {
+                                    for (let k = 0; k < s.v.length; k++) {
+                                        vars = findChildVariables(s.v[k]);
+                                        if (vars) {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (vars) {
+                            break;
+                        }
+                    }
+                }
+
+                addVariables(vars);
             }
         }
         else {
+            // 1 => global variables
+
             if (entry) {
                 addVariables(entry.v);
             }
