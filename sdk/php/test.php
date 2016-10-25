@@ -20,6 +20,9 @@ function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
         'h' => [
             'h1' => 0,
             'h2' => 1.2,
+            'h3' => function(&$A, callable $B, array $C = []) {
+
+            }
         ],
         'i' => $obj,
         'j' => [ 'MK', 'TM' ],
