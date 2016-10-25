@@ -863,7 +863,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                         let foundChildren: RemoteDebuggerVariable[];
                         
-                        // first check if object
+                        // first check if special type
                         if (!foundChildren) {
                             switch (('' + ve.t).toLowerCase().trim()) {
                                 case 'array':
