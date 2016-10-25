@@ -448,7 +448,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      * @param {any} msg The message to log.
      */
     protected log(msg) {
-        this.sendEvent(new vscode_dbg_adapter.OutputEvent(msg + '\n'));
+        this.sendEvent(new vscode_dbg_adapter.OutputEvent('[vs-remote-debugger] ' + msg + '\n'));
     }
 
     /** @inheritdoc */
@@ -621,6 +621,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     }
                 };
 
+                let remoteAddr = socket.remoteAddress;
+                let remotePort = socket.remotePort;
+
                 let buff: Buffer;
 
                 let buffOffset = 0;
@@ -640,6 +643,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                             buff = Buffer.alloc(dataLength);
                             offset = 4;
+                        }
+
+                        // check for possible overflow
+                        let newBufferOffset = buffOffset + data.length;
+                        if (newBufferOffset >= maxMsgSize) {
+                            closeSocket();
+                            return;
                         }
 
                         buffOffset += data.copy(buff, buffOffset,
@@ -706,6 +716,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         let makeStep = !me.entry ? true : false;
                         
                         me._entries.push(entry);
+
+                        this.log(`Got entry #${me._entries.length} from '${remoteAddr}:${remotePort}'`);
                         
                         if (!makeStep) {
                             return;
@@ -830,7 +842,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let me = this;
 
-        const VARIABLES = [];
+        const VARIABLES: DebugProtocol.Variable[] = [];
 
         let addVariables = (v?: RemoteDebuggerVariable[]) => {
             if (!v) {
