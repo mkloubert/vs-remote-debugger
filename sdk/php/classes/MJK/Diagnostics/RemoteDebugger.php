@@ -588,6 +588,8 @@ class RemoteDebugger {
             $step = 0;
         }
 
+        $entry = [];
+
         $type = 'string';
 
         if ($step < $maxSteps) {
@@ -611,7 +613,8 @@ class RemoteDebugger {
                         $ref = (int)(string)++$nextVarRef;
                         
                         $obj = [];
-                        $type = 'object';
+
+                        $type = 'array';
                         foreach ($value as $k => $v) {
                             $obj[] = $this->toVariableEntry($k, $v,
                                                             0, $nextVarRef,
@@ -623,9 +626,28 @@ class RemoteDebugger {
                     case 'object':
                         if ($value instanceof \Traversable) {
                             // handle as array
-                            return $this->toVariableEntry($name, \iterator_to_array($avle),
+                            return $this->toVariableEntry($name, \iterator_to_array($value),
                                                           $ref, $nextVarRef,
                                                           $step, $maxSteps);
+                        }
+                        else if ($value instanceof \Closure) {
+                            $ref = (int)(string)++$nextVarRef;
+
+                            $obj = [];
+                            $type = 'function';
+                            {
+                                $func = new \ReflectionFunction($value);
+
+                                $entry['fn'] = $func->getName();
+
+                                // get properties
+                                foreach ($func->getParameters() as $fp) {
+                                    $obj[] = $this->toVariableEntry('$' . $fp->getName(), $fp->isOptional() ? $fp->getDefaultValue() : '',
+                                                                    0, $nextVarRef,
+                                                                    $step + 1, $maxSteps);
+                                }
+                            }
+                            $value = &$obj;
                         }
                         else {
                             $ref = (int)(string)++$nextVarRef;
@@ -633,6 +655,8 @@ class RemoteDebugger {
                             $obj = [];
                             $type = 'object';
                             {
+                                $entry['on'] = @\get_class($value);
+
                                 // get properties
                                 foreach (\get_object_vars($value) as $k => $v) {
                                     $obj[] = $this->toVariableEntry('$' . $k, $v,
@@ -657,12 +681,12 @@ class RemoteDebugger {
             $value = (string)$value;
         }
 
-        return [
-            'n' => (string)$name,
-            'r' => $ref,
-            't' => $type,
-            'v' => $value,
-        ];
+        $entry['n'] = (string)$name;
+        $entry['r'] = $ref;
+        $entry['t'] = $type;
+        $entry['v'] = $value;
+
+        return $entry;
     }
 
     /**

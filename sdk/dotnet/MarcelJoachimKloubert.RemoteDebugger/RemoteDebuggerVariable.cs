@@ -27,10 +27,22 @@ namespace MarcelJoachimKloubert
     public class RemoteDebuggerVariable
     {
         /// <summary>
+        /// If type is 'function' this is the function name.
+        /// </summary>
+        [DataMember]
+        public string fn;
+
+        /// <summary>
         /// The name.
         /// </summary>
         [DataMember]
         public string n;
+
+        /// <summary>
+        /// If type is 'object' this is the object name.
+        /// </summary>
+        [DataMember]
+        public string on;
 
         /// <summary>
         /// The reference.

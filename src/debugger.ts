@@ -140,9 +140,19 @@ export interface RemoteDebuggerThread {
  */
 export interface RemoteDebuggerVariable {
     /**
+     * If type is 'function' this is the function name.
+     */
+    fn?: string;
+    
+    /**
      * The name.
      */
     n?: string;
+
+    /**
+     * If type is 'object' this is the object name.
+     */
+    on?: string;
 
     /**
      * The reference.
@@ -261,13 +271,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     }
 
     /**
-     * Returns the value and type of a variable.
+     * Returns the value and type of a variable to display.
      * 
      * @param {RemoteDebuggerVariable} [ve] The variable.
      * 
      * @return {Object} The type and display.
      */
-    protected getVariablesValue(ve?: RemoteDebuggerVariable): { type?: string, value?: any } {
+    protected getDisplayVariable(ve?: RemoteDebuggerVariable): { type?: string, value?: any } {
         if (!ve) {
             return { };
         }
@@ -276,10 +286,36 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let v = ve.v;
 
         switch (('' + ve.t).toLowerCase().trim()) {
+            case 'array':
+                t = "string";
+                
+                v = "[ARRAY";
+                if (ve.v) {
+                    v += ` (${ve.v.length})`;    
+                }
+                v += "]";
+                break;
+            
+            case 'function':
+                t = "string";
+                
+                v = "[FUNCTION ";
+                if (ve.fn) {
+                    v += ` ${ve.fn}()`;    
+                }
+                v += "]";
+                break;
+
             case 'object':
                 t = "string";
-                v = "[OBJECT]";
+                v = "[OBJECT";
+                if (ve.on) {
+                    v += ` :: ${ve.on}`;
+                }
+                v += "]";
                 break;
+
+            
         }
         
         return {
@@ -801,12 +837,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     continue;
                 }
 
-                let vd = me.getVariablesValue(ve);
+                let dv = me.getDisplayVariable(ve);
 
                 VARIABLES.push({
                     name: ve.n,
-                    type: vd.type,
-                    value: vd.value,
+                    type: dv.type,
+                    value: dv.value,
                     variablesReference: ve.r,
                 });
             }
@@ -830,6 +866,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         // first check if object
                         if (!foundChildren) {
                             switch (('' + ve.t).toLowerCase().trim()) {
+                                case 'array':
+                                case 'function':
                                 case 'object':
                                     if (ve.r == args.variablesReference) {
                                         foundChildren = ve.v;

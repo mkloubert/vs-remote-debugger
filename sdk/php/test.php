@@ -22,6 +22,7 @@ function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
             'h2' => 1.2,
         ],
         'i' => $obj,
+        'j' => [ 'MK', 'TM' ],
     ]);
 
     $debugger->dbgIf(true, [
