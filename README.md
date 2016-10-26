@@ -101,6 +101,8 @@ Look at the following interfaces in the [debugger.ts](https://github.com/mkloube
 | RemoteDebuggerScope | A scope of a stack frame. |
 | RemoteDebuggerVariable | A variable. |
 
+Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
+
 If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/test.php) script from the PHP SDK, a possible message can look like this:
 
 ```json
