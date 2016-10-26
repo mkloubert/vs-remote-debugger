@@ -4,7 +4,25 @@
 ![Installs](https://vsmarketplacebadge.apphb.com/installs/mkloubert.vs-remote-debugger.svg)
 ![Rating](https://vsmarketplacebadge.apphb.com/rating-short/mkloubert.vs-remote-debugger.svg)
 
-Visual Studio Code extension that makes it easy to debug code on a remote host by using a generic way.
+[Visual Studio Code](https://code.visualstudio.com/) (VS Code) extension that makes it easy to debug code on a remote host by using a generic way.
+
+## Why?
+
+In many scenarios you are not able to install debuggers like [XDebug](https://xdebug.org/).
+
+Another (additional) reason could be that you and your constributors work on the same server for different reasons.
+
+This is why you need a simple and generic way to debug your code in VS Code.
+
+## How does it work?
+
+The extension listens on a TCP port and waits for binary packages (debug messages) which contain UTF-8 formatted JSON data with all debug information that should be displayed in your editor.
+
+The system / server you would like to debug has to send these information to your debugger instance when it is executed.
+
+The extension stores these information and makes it possible to switch between all recived debug messages.
+
+![Install screenshot 3](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-3.png)
 
 ## Install
 
@@ -20,11 +38,11 @@ Open the root directory of the project you would like to debug and select the en
 
 Customize the initial configuration (if needed):
 
-![Install screenshot 1](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-2.png)
+![Install screenshot 2](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-2.png)
 
 And start debugging:
 
-![Install screenshot 2](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-3.png)
+![Install screenshot 3](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-3.png)
 
 ## Usage
 
