@@ -413,7 +413,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             let output = ' Command                                     | Description\n';
                output += '---------------------------------------------|-----------------\n';
                output += ' ?                                           | Shows that help screen\n';
-               output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite \n';
+               output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite\n';
                output += ' clear                                       | Removes all loaded entries and favorites\n';
                output += ' continue                                    | Continues debugging\n';
                output += ' current                                     | Displays current index\n';
@@ -424,10 +424,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                output += ' help                                        | Shows that help screen\n';
                output += ' last                                        | Jumps to last entry\n';
                output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Goes to a specific entry (beginning at 1) \n';
+               output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
                output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
                output += ' nofavs                                      | Clears all favorites"\n';
                output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
                output += ' refresh                                     | Refreshes the view\n';
+               output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
                output += ' state                                       | Displays the current debugger state\n';
                output += ' toggle                                      | Toggles "paused" state\n';
                output += ' wait                                        | Starts waiting for an entry\n';
