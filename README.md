@@ -75,11 +75,21 @@ The implementation of such a debugger message is quite simple.
 The first 4 bytes store the length of the JSON data. It represents an unsinged 32-bit value in little endian order. In [Node.js](https://nodejs.org/en/) it looks like this:
 
 ```typescript
-// 'debugMessage' is a Buffer object
-let jsonLength = debugMessage.readUInt32LE(0);
+// 'binaryPackage' is a Buffer object
+let jsonLength = binaryPackage.readUInt32LE(0);
 ```
 
-The rest contains the JSON data with the debug information.
+The rest contains the JSON data with the debug information:
+
+```typescript
+// 'binaryPackage' is a Buffer object
+let json = binaryPackage.toString('utf8',
+                                  4,  // skip 'jsonLength'
+                                  jsonLength + 4);
+                                 
+// RemoteDebuggerEntry (s. below)
+let debugMessage: RemoteDebuggerEntry = JSON.parse(json);
+```
 
 Look at the following interfaces in the [debugger.ts](https://github.com/mkloubert/vs-remote-debugger/blob/master/src/debugger.ts) to get an idea how a message is structured:
 
