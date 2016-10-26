@@ -105,6 +105,11 @@ export interface RemoteDebuggerStackFrame {
     l?: number;
 
     /**
+     * The full path of the file on the running machine.
+     */
+    ln?: string;
+
+    /**
      * The name.
      */
     n?: string;
@@ -195,6 +200,16 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     clients?: string[];
 
     /**
+     * Defines if the debugger should start in debug mode or not.
+     */
+    isDebug?: boolean;
+    
+    /**
+     * Defines if the debugger starts paused or not.
+     */
+    isPaused?: boolean;
+
+    /**
      * Path of the root directory of the project's sources.
      */
     localSourceRoot: string;
@@ -227,9 +242,21 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _currentEntry: number = -1;
     /**
+     * Stores if debug mode is enabled or not.
+     */
+    protected _isDebug = false;
+    /**
+     * Stores if the debugger is paused or not.
+     */
+    protected _isPaused = false;
+    /**
      * List of all loaded entries.
      */
     protected _entries: RemoteDebuggerEntry[] = [];
+    /**
+     * Stores the list of favorites.
+     */
+    protected _favorites: { index: number, entry: RemoteDebuggerEntry }[] = [];
     /**
      * The current server.
      */
@@ -268,6 +295,367 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         }
 
         return this._entries[ce];
+    }
+
+    /** @inheritdoc */
+    protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
+        let me = this;
+        
+        let expr = args.expression;
+        if (!expr) {
+            expr = '';
+        }
+
+        let action = () => {
+            me.sendResponse(response);
+        };
+        let noBody = false;
+        let result: any;
+        let varRef: number = 0;
+
+        let regEx_add = /^(add)([\s]?)([0-9]?)$/;
+        let regEx_goto = /^(goto)([\s]+)([0-9]+)$/;
+        let regEx_list = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/;
+
+        if ('clear' == expr.toLowerCase().trim()) {
+            // clear
+            
+            this._entries = [];
+            this._favorites = [];
+
+            result = 'Cleared';
+            action = () => {
+                me.gotoIndex(0, response);
+            };
+        }
+        else if ('continue' == expr.toLowerCase().trim()) {
+            // continue
+            
+            result = 'Running';
+            action = () => {
+                me._isPaused = false;
+                
+                me.sendResponse(response);
+            };
+        }
+        else if ('current' == expr.toLowerCase().trim()) {
+            // current
+            
+            result = 'Current index: ' + (this._currentEntry + 1);
+            action = () => {
+                me.sendResponse(response);
+            };
+        }
+        else if ('debug' == expr.toLowerCase().trim()) {
+            // debug
+            
+            result = 'Debug mode';
+            action = () => {
+                me._isDebug = true;
+                
+                me.sendResponse(response);
+            };
+        }
+        else if ('favs' == expr.toLowerCase().trim()) {
+            // favs
+
+            action = () => {
+                let output = '';
+
+                if (this._favorites.length > 0) {
+                    for (let i = 0; i < this._favorites.length; i++) {
+                        let fav = this._favorites[i];
+
+                        let file = '<???>';
+                        let line = '';
+                        if (fav.entry.s) {
+                            if (fav.entry.s.length > 0) {
+                                let firstStackFrame = fav.entry.s[0];
+
+                                file = firstStackFrame.f;
+                                if (firstStackFrame.l) {
+                                    line = ` (${firstStackFrame.l})`;
+                                }
+                            }
+                        }
+
+                        output += `[${fav.index}] ${file}${line}`;
+
+                        output += "\n";
+                    }
+                }
+                else {
+                    output = 'No favorites found!\n';
+                }
+
+                me.sendResponse(response);
+
+                me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
+            };
+        }
+        else if ('first' == expr.toLowerCase().trim()) {
+            // first
+            
+            let newIndex = 0;
+
+            result = 'New index: ' + (newIndex + 1);
+            action = () => {
+                me.gotoIndex(newIndex, response);
+            };
+        }
+        else if ('help' == expr.toLowerCase().trim() ||
+                 '?' == expr.toLowerCase().trim()) {
+            // first
+
+            let output = ' Command                                     | Description\n';
+               output += '---------------------------------------------|-----------------\n';
+               output += ' ?                                           | Shows that help screen\n';
+               output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite \n';
+               output += ' clear                                       | Removes all loaded entries and favorites\n';
+               output += ' continue                                    | Continues debugging\n';
+               output += ' current                                     | Displays current index\n';
+               output += ' debug                                       | Runs debugger itself in "debug mode"\n';
+               output += ' favs                                        | Lists all favorites\n';
+               output += ' first                                       | Jumps to first item\n';
+               output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
+               output += ' help                                        | Shows that help screen\n';
+               output += ' last                                        | Jumps to last entry\n';
+               output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Goes to a specific entry (beginning at 1) \n';
+               output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
+               output += ' nofavs                                      | Clears all favorites"\n';
+               output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
+               output += ' refresh                                     | Refreshes the view\n';
+               output += ' state                                       | Displays the current debugger state\n';
+               output += ' toggle                                      | Toggles "paused" state\n';
+               output += ' wait                                        | Starts waiting for an entry\n';
+            
+            let newIndex = 0;
+
+            action = () => {
+                me.sendResponse(response);
+
+                me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
+            };
+        }
+        else if ('last' == expr.toLowerCase().trim()) {
+            // last
+            
+            let newIndex = me._entries.length - 1;
+            
+            result = 'New index: ' + (newIndex + 1);
+            action = () => {
+                me.gotoIndex(newIndex, response);
+            };
+        }
+        else if ('nodebug' == expr.toLowerCase().trim()) {
+            // nodebug
+            
+            result = 'Debug mode leaved';
+            action = () => {
+                me._isDebug = false;
+                
+                me.sendResponse(response);
+            };
+        }
+        else if ('nofavs' == expr.toLowerCase().trim()) {
+            // nofavs
+            
+            this._favorites = [];
+
+            result = 'Favorites cleared';
+        }
+        else if ('pause' == expr.toLowerCase().trim()) {
+            // pause
+            
+            result = 'Paused';
+            action = () => {
+                me._isPaused = true;
+                
+                me.sendResponse(response);
+            };
+        }
+        else if ('refresh' == expr.toLowerCase().trim()) {
+            // refresh
+            
+            let newIndex = me._currentEntry;
+            
+            result = 'Current index: ' + (newIndex + 1);
+            action = () => {
+                me.gotoIndex(newIndex, response);
+            };
+        }
+        else if ('state' == expr.toLowerCase().trim()) {
+            // state
+            
+            result = me._isPaused ? 'Paused' : 'Running';
+            action = () => {
+                me.sendResponse(response);
+            };
+        }
+        else if ('toggle' == expr.toLowerCase().trim()) {
+            // toggle
+            
+            result = !me._isPaused ? 'Paused' : 'Running';
+            action = () => {
+                me._isPaused = !me._isPaused;
+
+                me.sendResponse(response);
+            };
+        }
+        else if ('wait' == expr.toLowerCase().trim()) {
+            // wait
+
+            let newIndex = me._entries.length;
+            
+            result = 'Waiting...';
+            action = () => {
+                me.gotoIndex(newIndex, response);
+            };
+        }
+        else if (regEx_add.test(expr.toLowerCase().trim())) {
+            // add
+
+            let match = regEx_add.exec(expr.toLowerCase().trim());
+
+            let index = this._currentEntry + 1;
+            if ('' != match[3]) {
+                index = parseInt(match[3]);
+            }
+
+            let entry: RemoteDebuggerEntry;
+            if (index <= this._entries.length) {
+                entry = this._entries[index - 1];
+            }
+
+            if (entry) {
+                let fav = { 
+                    index: index,
+                    entry: entry,
+                };
+
+                let exists = false;
+                for (let i = 0; i < this._favorites.length; i++) {
+                    if (this._favorites[i].index == index) {
+                        // do not add duplicates
+
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (!exists) {
+                    this._favorites.push(fav);
+
+                    this._favorites.sort((x, y) => {
+                        if (x.index > y.index) {
+                            return 1;
+                        }
+                        if (x.index < y.index) {
+                            return -1;
+                        }
+
+                        return 0;
+                    });
+                }
+
+                result = 'Added ' + fav.index + ' as favorite';
+            }
+            else {
+                if (this._entries.length > 0) {
+                    result = `Please select a valid index from 1 to ${this._entries.length}!`;
+                }
+                else {
+                    result = 'Please select an entry!';
+                }
+            }
+        }
+        else if (regEx_goto.test(expr.toLowerCase().trim())) {
+            // goto
+
+            let match = regEx_goto.exec(expr.toLowerCase().trim());
+            let newIndex = parseInt(match[3].trim());
+
+            result = 'New index: ' + (this._currentEntry + 1);
+            action = () => {
+                me.gotoIndex(newIndex - 1, response);
+            };
+        }
+        else if (regEx_list.test(expr.toLowerCase().trim())) {
+            // list
+
+            let match = regEx_list.exec(expr.toLowerCase().trim());
+
+            let itemsToSkip: number = 0;
+            if ('' != match[3]) {
+                itemsToSkip = parseInt(match[3]);
+            }
+
+            let itemsToDisplay: number = 50;
+            if ('' != match[5]) {
+                itemsToDisplay = parseInt(match[5]);
+            }
+
+            let newIndex = parseInt(match[3].trim());
+
+            action = () => {
+                let output: string = '';
+
+                let numberOfDisplayedItems = 0;
+                for (let i = 0; i < itemsToDisplay; i++) {
+                    let index = itemsToSkip + i;
+                    if (index >= this._entries.length) {
+                        // no more items to display
+                        break;
+                    }
+
+                    let entry = this._entries[index];
+                    if (!entry) {
+                        break;
+                    }
+
+                    ++numberOfDisplayedItems;
+
+                    let file = '<???>';
+                    let line = '';
+                    if (entry.s) {
+                        if (entry.s.length > 0) {
+                            let firstStackFrame = entry.s[0];
+
+                            file = firstStackFrame.f;
+                            if (firstStackFrame.l) {
+                                line = ` (${firstStackFrame.l})`;
+                            }
+                        }
+                    }
+
+                    output += `[${index + 1}] ${file}${line}`;
+
+                    output += "\n";
+                }
+
+                if (numberOfDisplayedItems < 1) {
+                    output = "No items found!\n";
+                }
+
+                me.sendResponse(response);
+                
+                me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
+            };
+        }
+        else {
+            noBody = true;
+        }
+
+        if (!noBody) {
+            response.body = {
+                result: result,
+                variablesReference: varRef,
+            };
+        }
+
+        if (action) {
+            action();
+        }
     }
 
     /**
@@ -398,6 +786,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 me.sendResponse(response);
             },
+            isDebug: args.isDebug ? true : false,
+            isPaused: args.isPaused ? true : false,
             maxMessageSize: args.maxMessageSize,
             port: args.port,
         });
@@ -491,6 +881,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         };
 
         this.sendResponse(response);
+    }
+
+    /** @inheritdoc */
+    protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
+        this.log('setBreakPointsRequest: ' + args.breakpoints.length);
     }
 
     /** @inheritdoc */
@@ -599,6 +994,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             me._bigStepForward = opts.bigSteps.forward;    
         }
 
+        me._isDebug = opts.isDebug ? true : false;
+        me._isPaused = opts.isPaused ? true : false;
+
         let newServer = Net.createServer((socket) => {
             try {
                 let closeSocket = () => {
@@ -664,6 +1062,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             return;
                         }
 
+                        if (me._isPaused) {
+                            return;
+                        }
+
                         let addEntry = true;
 
                         // check for client
@@ -706,7 +1108,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         
                         me._entries.push(entry);
 
-                        this.log(`Got entry #${me._entries.length} from '${remoteAddr}:${remotePort}'`);
+                        if (me._isDebug) {
+                            me.log(`Got entry #${me._entries.length} from '${remoteAddr}:${remotePort}'`);
+                        }
                         
                         if (!makeStep) {
                             return;
@@ -731,8 +1135,18 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 me._server = newServer;
 
                 me.log('TCP server started on port ' + port);
-                me.log('App filters: ' + apps.join(', '));
-                me.log('Client filters: ' + clients.join(', '));
+
+                if (apps.length > 0) {
+                    me.log('App filters: ' + apps.join(', '));
+                }
+                
+                if (clients.length > 0) {
+                    me.log('Client filters: ' + clients.join(', '));
+                }
+
+                if (me._isPaused) {
+                    me.log('PAUSED');
+                }
             }
             else {
                 showError(err, "listening");
