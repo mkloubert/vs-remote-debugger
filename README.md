@@ -12,7 +12,7 @@ In many scenarios you are not able to install debuggers like [XDebug](https://xd
 
 Another (additional) reason could be that you and your constributors work on the same server for different reasons.
 
-This is why you need a simple and generic way to debug your code in VS Code.
+This is why you need a simple way to debug your code in VS Code on many system with an optional list of constributors.
 
 ## How does it work?
 
