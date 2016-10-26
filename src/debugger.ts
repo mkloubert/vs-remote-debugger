@@ -21,6 +21,7 @@
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
+import FS = require('fs');
 import Net = require('net');
 import OS = require("os");
 import Path = require('path');
@@ -313,9 +314,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let result: any;
         let varRef: number = 0;
 
-        let regEx_add = /^(add)([\s]?)([0-9]?)$/;
-        let regEx_goto = /^(goto)([\s]+)([0-9]+)$/;
-        let regEx_list = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/;
+        let regEx_add = /^(add)([\s]?)([0-9]?)$/i;
+        let regEx_goto = /^(goto)([\s]+)([0-9]+)$/i;
+        let regEx_list = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
+        let regEx_load = /^(load)([\s]*)([\S]*)$/i;
+        let regEx_save = /^(save)([\s]*)([\S]*)$/i;
 
         if ('clear' == expr.toLowerCase().trim()) {
             // clear
@@ -512,10 +515,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 me.gotoIndex(newIndex, response);
             };
         }
-        else if (regEx_add.test(expr.toLowerCase().trim())) {
+        else if (regEx_add.test(expr.trim())) {
             // add
 
-            let match = regEx_add.exec(expr.toLowerCase().trim());
+            let match = regEx_add.exec(expr.trim());
 
             let index = this._currentEntry + 1;
             if ('' != match[3]) {
@@ -569,10 +572,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
             }
         }
-        else if (regEx_goto.test(expr.toLowerCase().trim())) {
+        else if (regEx_goto.test(expr.trim())) {
             // goto
 
-            let match = regEx_goto.exec(expr.toLowerCase().trim());
+            let match = regEx_goto.exec(expr.trim());
             let newIndex = parseInt(match[3].trim());
 
             result = 'New index: ' + (this._currentEntry + 1);
@@ -580,10 +583,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 me.gotoIndex(newIndex - 1, response);
             };
         }
-        else if (regEx_list.test(expr.toLowerCase().trim())) {
+        else if (regEx_list.test(expr.trim())) {
             // list
 
-            let match = regEx_list.exec(expr.toLowerCase().trim());
+            let match = regEx_list.exec(expr.trim());
 
             let itemsToSkip: number = 0;
             if ('' != match[3]) {
@@ -603,12 +606,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 let numberOfDisplayedItems = 0;
                 for (let i = 0; i < itemsToDisplay; i++) {
                     let index = itemsToSkip + i;
-                    if (index >= this._entries.length) {
+                    if (index >= me._entries.length) {
                         // no more items to display
                         break;
                     }
 
-                    let entry = this._entries[index];
+                    let entry = me._entries[index];
                     if (!entry) {
                         break;
                     }
@@ -641,6 +644,200 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 
                 me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
             };
+        }
+        else if (regEx_load.test(expr.trim())) {
+            // load
+
+            let match = regEx_load.exec(expr.trim());
+            let file = match[3].trim();
+
+            action = () => {
+                let sendResponse = () => {
+                    me.sendResponse(response);
+                };
+
+                let showError = (err) => {
+                    me.log('[ERROR :: save()]: ' + err);
+                };
+
+                sendResponse();
+
+                try {
+                    if ('' == file) {
+                        let existingFileNames = FS.readdirSync(me._sourceRoot);
+                        let existingFiles: { path: string, stats: FS.Stats}[] = [];
+                        for (let i = 0; i < existingFileNames.length; i++) {
+                            let fileName = existingFileNames[i];
+                            if (!/^(vsrd_favs_)([0-9]+)(\.json)$/i.test(fileName.trim())) {
+                                continue;
+                            }
+
+                            let fullPath = Path.join(me._sourceRoot, fileName);
+                            
+                            let ls = FS.lstatSync(fullPath);
+                            if (ls.isFile()) {
+                                existingFiles.push({
+                                    path: fullPath,
+                                    stats: ls,
+                                });
+                            }
+                        }
+
+                        if (existingFiles.length > 0) {
+                            existingFiles.sort((x, y) => {
+                                if (x.stats.ctime.getTime() > y.stats.ctime.getTime()) {
+                                    return -1;
+                                }
+
+                                if (x.stats.ctime.getTime() < y.stats.ctime.getTime()) {
+                                    return 1;
+                                }
+
+                                return 0;
+                            });
+
+                            file = existingFiles[0].path;
+                        }
+                    }
+
+                    if ('' == file) {
+                        me.sendEvent(new vscode_dbg_adapter.OutputEvent("Please select a file!"));
+                        return;
+                    }
+
+                    if (!Path.isAbsolute(file)) {
+                        file = Path.join(me._sourceRoot, file);
+                    }
+
+                    let loadedEntries: RemoteDebuggerEntry[] = require(file);
+                    if (loadedEntries && loadedEntries.length) {
+                        let loadedEntryCount = 0;
+                        for (let i = 0; i < loadedEntries.length; i++) {
+                            let entry = loadedEntries[i];
+                            if (entry) {
+                                me._entries.push(entry);
+                                ++loadedEntryCount;
+                            }
+                        }
+
+                        if (loadedEntries.length > 0) {
+                            me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Loaded ${loadedEntryCount} entries from '${file}'`));
+
+                            me.gotoIndex(me._currentEntry);
+                        }
+                    }
+                }
+                catch (e) {
+                    showError(e);
+                }
+            };
+        }
+        else if (regEx_save.test(expr.trim())) {
+            // save
+
+            let match = regEx_save.exec(expr.trim());
+            let file = match[3].trim();
+
+            action = () => {
+                let sendResponse = () => {
+                    me.sendResponse(response);
+                };
+
+                let showError = (err) => {
+                    me.log('[ERROR :: save()]: ' + err);
+                };
+
+                if (me._favorites.length > 0) {
+                    try {
+                        
+                        if ('' == file) {
+                            // auto save
+
+                            let now = new Date();
+
+                            let index: number = -1;
+                            let baseName = 'vsrd_favs_' + now.getTime();
+                            let fullPath: string;
+                            let stats: FS.Stats;
+                            
+                            let exists: boolean;
+                            do {
+                                exists = false;
+
+                                try {
+                                    let fileName = baseName;
+                                    if (index > -1) {
+                                        fileName += '_' + index;
+                                    }
+                                    fileName += '.json';
+
+                                    fullPath = Path.join(this._sourceRoot, fileName);
+
+                                    exists = FS.lstatSync(fullPath).isFile();
+                                }
+                                catch (e) {
+                                    exists = false;
+                                }
+                            }
+                            while (exists);
+
+                            file = fullPath;
+                        }
+
+                        if (!Path.isAbsolute(file)) {
+                            file = Path.join(this._sourceRoot, file);
+                        }
+
+                        let saveFavs = () => {
+                            sendResponse();
+
+                            try {
+                                let jsons: string[] = [];
+
+                                for (let i = 0; i < me._favorites.length; i++) {
+                                    let fav = me._favorites[i];
+                                    if (!fav) {
+                                        continue;
+                                    }
+
+                                    jsons.push(JSON.stringify(fav.entry, null, 2));
+                                }
+
+                                FS.writeFileSync(file, '[\n' + jsons.join(', ') + '\n]', {
+                                    encoding: 'utf8'
+                                });
+
+                                me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Saved favorites to '${file}'`));
+                            }
+                            catch (e) {
+                                showError(e);
+                            }
+                        };
+
+                        try {
+                            let stats = FS.lstatSync(file);
+                            
+                            if (stats.isFile()) {
+                                FS.unlinkSync(file);
+                            }
+                        }
+                        catch (e) {
+                        }
+
+                        saveFavs();
+                    }
+                    catch (e) {
+                        sendResponse();
+                        
+                        showError(e);
+                    }
+                }
+                else {
+                    sendResponse();
+                    
+                    me.sendEvent(new vscode_dbg_adapter.OutputEvent("No favorites available."));
+                }
+            }
         }
         else {
             noBody = true;
@@ -702,8 +899,6 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
                 v += "]";
                 break;
-
-            
         }
         
         return {
