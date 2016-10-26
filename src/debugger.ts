@@ -314,7 +314,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let result: any;
         let varRef: number = 0;
 
-        let regEx_add = /^(add)([\s]?)([0-9]?)$/i;
+        let regEx_add = /^(add)([\s]?)([0-9]+)$/i;
         let regEx_goto = /^(goto)([\s]+)([0-9]+)$/i;
         let regEx_list = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
         let regEx_load = /^(load)([\s]*)([\S]*)$/i;
