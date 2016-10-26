@@ -12,7 +12,7 @@ In many scenarios you are not able to install debuggers like [XDebug](https://xd
 
 Another (additional) reason could be that you and your constributors work on the same server for different reasons.
 
-This is why you need a simple way to debug your code in VS Code on many systems with an optional list of constributors and the possibility to send data over a TCP socket.
+This is why you need a simple way to debug your code in VS Code on many systems with an optional list of constributors and the possibility to send data over a TCP socket to you.
 
 ## How does it work?
 
