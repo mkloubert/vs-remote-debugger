@@ -227,6 +227,15 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 }
 
 /**
+ * The default size of a debugger message.
+ */
+export const DEFAULT_MESSAGE_SIZE = 16777215;
+/**
+ * The default TCP port.
+ */
+export const DEFAULT_PORT = 5979;
+
+/**
  * A debugger session.
  */
 class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
@@ -314,13 +323,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let result: any;
         let varRef: number = 0;
 
-        let regEx_add = /^(add)([\s]?)([0-9]*)$/i;
-        //TODO: let regEx_dump = /^(dump)([\s]?)([0-9]*)$/i;
-        let regEx_goto = /^(goto)([\s]+)([0-9]+)$/i;
-        let regEx_list = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
-        let regEx_load = /^(load)([\s]*)([\S]*)$/i;
-        let regEx_save = /^(save)([\s]*)([\S]*)$/i;
-        //TODO: let regEx_send = /^(send)([\s]+)([\S]+)([\s]+)([0-9]+)$/i;
+        const REGEX_ADD = /^(add)([\s]?)([0-9]*)$/i;
+        const REGEX_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
+        const REGEX_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
+        const REGEX_LOAD = /^(load)([\s]*)([\S]*)$/i;
+        const REGEX_SAVE = /^(save)([\s]*)([\S]*)$/i;
+        const REGEX_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
 
         if ('clear' == expr.toLowerCase().trim()) {
             // clear
@@ -420,7 +428,6 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                output += ' continue                                    | Continues debugging\n';
                output += ' current                                     | Displays current index\n';
                output += ' debug                                       | Runs debugger itself in "debug mode"\n';
-               //TODO: output += ' dump [$INDEX]                               | Dumps an entry\n';
                output += ' favs                                        | Lists all favorites\n';
                output += ' first                                       | Jumps to first item\n';
                output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
@@ -430,10 +437,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
                output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
                output += ' nofavs                                      | Clears all favorites"\n';
+               output += ' notes                                       | Clears all favorites"\n';
                output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
                output += ' refresh                                     | Refreshes the view\n';
                output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
-               //TODO: output += ' send $ADDR $PORT                            | Sends your favorites to a remote machine\n';
+               output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
                output += ' state                                       | Displays the current debugger state\n';
                output += ' toggle                                      | Toggles "paused" state\n';
                output += ' wait                                        | Starts waiting for an entry\n';
@@ -521,10 +529,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 me.gotoIndex(newIndex, response);
             };
         }
-        else if (regEx_add.test(expr.trim())) {
+        else if (REGEX_ADD.test(expr.trim())) {
             // add
 
-            let match = regEx_add.exec(expr.trim());
+            let match = REGEX_ADD.exec(expr.trim());
 
             let index = this._currentEntry + 1;
             if ('' != match[3]) {
@@ -578,39 +586,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
             }
         }
-        /* TODO
-        else if (regEx_dump.test(expr.trim())) {
-            // dump
-
-            let match = regEx_dump.exec(expr.trim());
-
-            let index = this._currentEntry + 1;
-            if ('' != match[3]) {
-                index = parseInt(match[3]);
-            }
-
-            let entry: RemoteDebuggerEntry;
-            if (index <= this._entries.length) {
-                entry = this._entries[index - 1];
-            }
-
-            if (entry) {
-                result = JSON.stringify(entry, null, 2);
-            }
-            else {
-                if (this._entries.length > 0) {
-                    result = `Please select a valid index from 1 to ${this._entries.length}!`;
-                }
-                else {
-                    result = 'Please select an entry!';
-                }
-            }
-        }
-        */
-        else if (regEx_goto.test(expr.trim())) {
+        else if (REGEX_GOTO.test(expr.trim())) {
             // goto
 
-            let match = regEx_goto.exec(expr.trim());
+            let match = REGEX_GOTO.exec(expr.trim());
             let newIndex = parseInt(match[3].trim());
 
             result = 'New index: ' + (this._currentEntry + 1);
@@ -618,10 +597,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 me.gotoIndex(newIndex - 1, response);
             };
         }
-        else if (regEx_list.test(expr.trim())) {
+        else if (REGEX_LIST.test(expr.trim())) {
             // list
 
-            let match = regEx_list.exec(expr.trim());
+            let match = REGEX_LIST.exec(expr.trim());
 
             let itemsToSkip: number = 0;
             if ('' != match[3]) {
@@ -680,10 +659,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
             };
         }
-        else if (regEx_load.test(expr.trim())) {
+        else if (REGEX_LOAD.test(expr.trim())) {
             // load
 
-            let match = regEx_load.exec(expr.trim());
+            let match = REGEX_LOAD.exec(expr.trim());
             let file = match[3].trim();
 
             action = () => {
@@ -767,10 +746,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
             };
         }
-        else if (regEx_save.test(expr.trim())) {
+        else if (REGEX_SAVE.test(expr.trim())) {
             // save
 
-            let match = regEx_save.exec(expr.trim());
+            let match = REGEX_SAVE.exec(expr.trim());
             let file = match[3].trim();
 
             action = () => {
@@ -874,15 +853,18 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
             }
         }
-        /* TODO
-        else if (regEx_send.test(expr.trim())) {
+        else if (REGEX_SEND.test(expr.trim())) {
             // send
 
             action = () => {
-                let match = regEx_send.exec(expr.trim());
+                let match = REGEX_SEND.exec(expr.trim());
 
                 let host = match[3].toLowerCase().trim();
-                let port = parseInt(match[5].trim());
+                
+                let port = DEFAULT_PORT;
+                if ('' !== match[5]) {
+                    port = parseInt(match[5]);
+                }
 
                 let output = '';
 
@@ -893,18 +875,42 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         me.sendEvent(new vscode_dbg_adapter.OutputEvent('[ERROR :: send()]: ' + err + '\n'));
                     };
 
-                    for (let i = 0; i < me._favorites.length; i++) {
+                    let favs = me._favorites;
+                    
+                    let finished = () => {
+                        if (favs && favs.length > 0) {
+                            me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Send favorites to '${host}:${port}'\n`));
+                        }
+                    };
+
+                    let i = -1;
+                    let sendNext: () => void;
+                    sendNext = () => {
+                        ++i;
+                        
+                        if (!favs) {
+                            finished();
+                            return;
+                        }
+
+                        if (i >= me._favorites.length) {
+                            finished();
+                            return;
+                        }
+                        
                         try {
-                            let json = new Buffer(JSON.stringify(me._favorites[i].entry),
+                            let json = new Buffer(JSON.stringify(favs[i].entry),
                                                   'utf8');
 
                             let dataLength = Buffer.alloc(4);
                             dataLength.writeUInt32LE(json.length, 0);
 
-                            var client = new Net.Socket();
+                            let client = new Net.Socket();
 
                             client.on('error', function(err) {
                                 showError(err);
+
+                                sendNext();
                             });
 
                             client.connect(port, host, () => {
@@ -913,25 +919,26 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                                     client.write(json);
 
                                     client.destroy();
-
-                                    me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Send favorites to '${host}:${port}'\n`));
                                 }
                                 catch (e) {
                                     showError(e);
                                 }
+
+                                sendNext();
                             });
                         }
                         catch (e) {
                             showError(e);
                         }
-                    }
+                    };
+
+                    sendNext();
                 }
                 else {
                     me.sendEvent(new vscode_dbg_adapter.OutputEvent('Nothing to send!\n'));
                 }
             };
         }
-        */
         else {
             noBody = true;
         }
@@ -1223,12 +1230,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let me = this;
 
-        let port = 5979;
+        let port = DEFAULT_PORT;
         if (opts.port) {
             port = opts.port;
         }
 
-        let maxMsgSize = 16777215;
+        let maxMsgSize = DEFAULT_MESSAGE_SIZE;
         if (opts.maxMessageSize) {
             maxMsgSize = opts.maxMessageSize;
         }
