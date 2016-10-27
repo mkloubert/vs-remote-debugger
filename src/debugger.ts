@@ -314,11 +314,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let result: any;
         let varRef: number = 0;
 
-        let regEx_add = /^(add)([\s]?)([0-9]+)$/i;
+        let regEx_add = /^(add)([\s]?)([0-9]*)$/i;
+        //TODO: let regEx_dump = /^(dump)([\s]?)([0-9]*)$/i;
         let regEx_goto = /^(goto)([\s]+)([0-9]+)$/i;
         let regEx_list = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
         let regEx_load = /^(load)([\s]*)([\S]*)$/i;
         let regEx_save = /^(save)([\s]*)([\S]*)$/i;
+        //TODO: let regEx_send = /^(send)([\s]+)([\S]+)([\s]+)([0-9]+)$/i;
 
         if ('clear' == expr.toLowerCase().trim()) {
             // clear
@@ -418,6 +420,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                output += ' continue                                    | Continues debugging\n';
                output += ' current                                     | Displays current index\n';
                output += ' debug                                       | Runs debugger itself in "debug mode"\n';
+               //TODO: output += ' dump [$INDEX]                               | Dumps an entry\n';
                output += ' favs                                        | Lists all favorites\n';
                output += ' first                                       | Jumps to first item\n';
                output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
@@ -430,6 +433,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
                output += ' refresh                                     | Refreshes the view\n';
                output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
+               //TODO: output += ' send $ADDR $PORT                            | Sends your favorites to a remote machine\n';
                output += ' state                                       | Displays the current debugger state\n';
                output += ' toggle                                      | Toggles "paused" state\n';
                output += ' wait                                        | Starts waiting for an entry\n';
@@ -574,6 +578,35 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
             }
         }
+        /* TODO
+        else if (regEx_dump.test(expr.trim())) {
+            // dump
+
+            let match = regEx_dump.exec(expr.trim());
+
+            let index = this._currentEntry + 1;
+            if ('' != match[3]) {
+                index = parseInt(match[3]);
+            }
+
+            let entry: RemoteDebuggerEntry;
+            if (index <= this._entries.length) {
+                entry = this._entries[index - 1];
+            }
+
+            if (entry) {
+                result = JSON.stringify(entry, null, 2);
+            }
+            else {
+                if (this._entries.length > 0) {
+                    result = `Please select a valid index from 1 to ${this._entries.length}!`;
+                }
+                else {
+                    result = 'Please select an entry!';
+                }
+            }
+        }
+        */
         else if (regEx_goto.test(expr.trim())) {
             // goto
 
@@ -841,6 +874,64 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 }
             }
         }
+        /* TODO
+        else if (regEx_send.test(expr.trim())) {
+            // send
+
+            action = () => {
+                let match = regEx_send.exec(expr.trim());
+
+                let host = match[3].toLowerCase().trim();
+                let port = parseInt(match[5].trim());
+
+                let output = '';
+
+                me.sendResponse(response);
+
+                if (me._favorites.length > 0) {
+                    let showError = (err) => {
+                        me.sendEvent(new vscode_dbg_adapter.OutputEvent('[ERROR :: send()]: ' + err + '\n'));
+                    };
+
+                    for (let i = 0; i < me._favorites.length; i++) {
+                        try {
+                            let json = new Buffer(JSON.stringify(me._favorites[i].entry),
+                                                  'utf8');
+
+                            let dataLength = Buffer.alloc(4);
+                            dataLength.writeUInt32LE(json.length, 0);
+
+                            var client = new Net.Socket();
+
+                            client.on('error', function(err) {
+                                showError(err);
+                            });
+
+                            client.connect(port, host, () => {
+                                try {
+                                    client.write(dataLength);
+                                    client.write(json);
+
+                                    client.destroy();
+
+                                    me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Send favorites to '${host}:${port}'\n`));
+                                }
+                                catch (e) {
+                                    showError(e);
+                                }
+                            });
+                        }
+                        catch (e) {
+                            showError(e);
+                        }
+                    }
+                }
+                else {
+                    me.sendEvent(new vscode_dbg_adapter.OutputEvent('Nothing to send!\n'));
+                }
+            };
+        }
+        */
         else {
             noBody = true;
         }
