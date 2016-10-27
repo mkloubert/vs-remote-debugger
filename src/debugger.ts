@@ -18,6 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import * as vsrd_contracts from './contracts';
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
@@ -25,215 +26,6 @@ import FS = require('fs');
 import Net = require('net');
 import OS = require("os");
 import Path = require('path');
-
-/**
- * Describes a debugger entry.
- */
-export interface RemoteDebuggerEntry {
-    /**
-     * The name of the app the entry is for.
-     */
-    a?: string;
-
-    /**
-     * The name of the client the entry is for.
-     */
-    c?: string;
-
-    /**
-     * The name of the file.
-     */
-    f?: string;
-
-    /**
-     * The stacktrace.
-     */
-    s?: RemoteDebuggerStackFrame[];
-
-    /**
-     * The list of threads.
-     */
-    t?: RemoteDebuggerThread[];
-
-    /**
-     * The list of variables.
-     */
-    v?: RemoteDebuggerVariable[];
-}
-
-/**
- * A scope.
- */
-export interface RemoteDebuggerScope {
-    /**
-     * The name.
-     */
-    n?: string;
-
-    /**
-     * The reference number.
-     */
-    r?: number;
-
-    /**
-     * The list of debugger variables.
-     */
-    v?: RemoteDebuggerVariable[];
-}
-
-/**
- * A frame of a stacktrace.
- */
-export interface RemoteDebuggerStackFrame {
-    /**
-     * The file path.
-     */
-    f?: string;
-
-    /**
-     * The file name.
-     */
-    fn?: string;
-    
-    /**
-     * The ID.
-     */
-    i?: number;
-
-    /**
-     * The line in the file.
-     */
-    l?: number;
-
-    /**
-     * The full path of the file on the running machine.
-     */
-    ln?: string;
-
-    /**
-     * The name.
-     */
-    n?: string;
-
-    /**
-     * The list of scopes.
-     */
-    s?: RemoteDebuggerScope[];
-
-    /**
-     * The list of variables.
-     */
-    v?: RemoteDebuggerVariable[];
-}
-
-/**
- * A thread.
- */
-export interface RemoteDebuggerThread {
-    /**
-     * The ID.
-     */
-    i?: number;
-
-    /**
-     * The name.
-     */
-    n?: string;
-}
-
-/**
- * A variable.
- */
-export interface RemoteDebuggerVariable {
-    /**
-     * If type is 'function' this is the function name.
-     */
-    fn?: string;
-    
-    /**
-     * The name.
-     */
-    n?: string;
-
-    /**
-     * If type is 'object' this is the object name.
-     */
-    on?: string;
-
-    /**
-     * The reference.
-     */
-    r?: number;
-
-    /**
-     * The data type.
-     */
-    t?: string;
-    
-    /**
-     * The value.
-     */
-    v?: any;
-}
-
-/**
- * Launch request arguments.
- */
-export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-    /**
-     * List of allowed apps.
-     */
-    apps?: string[];
-
-    /**
-     * Size of a big step (back).
-     */
-    bigStepBack?: number;
-
-    /**
-     * Number of big steps forward.
-     */
-    bigStepForward?: number;
-
-    /**
-     * Name of the target clients.
-     */
-    clients?: string[];
-
-    /**
-     * Defines if the debugger should start in debug mode or not.
-     */
-    isDebug?: boolean;
-    
-    /**
-     * Defines if the debugger starts paused or not.
-     */
-    isPaused?: boolean;
-
-    /**
-     * Path of the root directory of the project's sources.
-     */
-    localSourceRoot: string;
-
-    /**
-     * The maximum size in bytes a debug entry can have.
-     */
-    maxMessageSize?: number;
-
-    /**
-     * The TCP port.
-     */
-    port?: number;
-}
-
-/**
- * The default size of a debugger message.
- */
-export const DEFAULT_MESSAGE_SIZE = 16777215;
-/**
- * The default TCP port.
- */
-export const DEFAULT_PORT = 5979;
 
 /**
  * A debugger session.
@@ -262,11 +54,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded entries.
      */
-    protected _entries: RemoteDebuggerEntry[] = [];
+    protected _entries: vsrd_contracts.RemoteDebuggerEntry[] = [];
     /**
      * Stores the list of favorites.
      */
-    protected _favorites: { index: number, entry: RemoteDebuggerEntry }[] = [];
+    protected _favorites: { index: number, entry: vsrd_contracts.RemoteDebuggerEntry }[] = [];
     /**
      * The current server.
      */
@@ -296,7 +88,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * Gets the current entry.
      */
-    public get entry(): RemoteDebuggerEntry {
+    public get entry(): vsrd_contracts.RemoteDebuggerEntry {
         // this.log('entry');
 
         var ce = this._currentEntry;
@@ -539,7 +331,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 index = parseInt(match[3]);
             }
 
-            let entry: RemoteDebuggerEntry;
+            let entry: vsrd_contracts.RemoteDebuggerEntry;
             if (index <= this._entries.length) {
                 entry = this._entries[index - 1];
             }
@@ -723,7 +515,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         file = Path.join(me._sourceRoot, file);
                     }
 
-                    let loadedEntries: RemoteDebuggerEntry[] = require(file);
+                    let loadedEntries: vsrd_contracts.RemoteDebuggerEntry[] = require(file);
                     if (loadedEntries && loadedEntries.length) {
                         let loadedEntryCount = 0;
                         for (let i = 0; i < loadedEntries.length; i++) {
@@ -861,7 +653,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 let host = match[3].toLowerCase().trim();
                 
-                let port = DEFAULT_PORT;
+                let port = vsrd_contracts.DEFAULT_PORT;
                 if ('' !== match[5]) {
                     port = parseInt(match[5]);
                 }
@@ -962,7 +754,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      * 
      * @return {Object} The type and display.
      */
-    protected getDisplayVariable(ve?: RemoteDebuggerVariable): { type?: string, value?: any } {
+    protected getDisplayVariable(ve?: vsrd_contracts.RemoteDebuggerVariable): { type?: string, value?: any } {
         if (!ve) {
             return { };
         }
@@ -1062,7 +854,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     }
 
     /** @inheritdoc */
-    protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
+    protected launchRequest(response: DebugProtocol.LaunchResponse, args: vsrd_contracts.LaunchRequestArguments): void {
         // this.log('launchRequest');
         
         let me = this;
@@ -1230,12 +1022,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let me = this;
 
-        let port = DEFAULT_PORT;
+        let port = vsrd_contracts.DEFAULT_PORT;
         if (opts.port) {
             port = opts.port;
         }
 
-        let maxMsgSize = DEFAULT_MESSAGE_SIZE;
+        let maxMsgSize = vsrd_contracts.DEFAULT_MESSAGE_SIZE;
         if (opts.maxMessageSize) {
             maxMsgSize = opts.maxMessageSize;
         }
@@ -1352,7 +1144,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                         let json = buff.toString('utf8');
 
-                        let entry: RemoteDebuggerEntry = JSON.parse(json);
+                        let entry: vsrd_contracts.RemoteDebuggerEntry = JSON.parse(json);
                         if (!entry) {
                             return;
                         }
@@ -1550,7 +1342,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         const VARIABLES: DebugProtocol.Variable[] = [];
 
-        let addVariables = (v?: RemoteDebuggerVariable[]): boolean => {
+        let addVariables = (v?: vsrd_contracts.RemoteDebuggerVariable[]): boolean => {
             if (!v) {
                 return false;
             }
@@ -1577,7 +1369,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let entry = this.entry;
         
         if (1 != args.variablesReference) {
-            let findChildVariables: (ve?: RemoteDebuggerVariable) => RemoteDebuggerVariable[];
+            let findChildVariables: (ve?: vsrd_contracts.RemoteDebuggerVariable) => vsrd_contracts.RemoteDebuggerVariable[];
             findChildVariables = (ve?) => {
                 if (ve) {
                     if (ve.r > 1) {
@@ -1585,7 +1377,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             return ve.v;
                         }
 
-                        let foundChildren: RemoteDebuggerVariable[];
+                        let foundChildren: vsrd_contracts.RemoteDebuggerVariable[];
                         
                         // first check if special type
                         if (!foundChildren) {
@@ -1608,7 +1400,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         if (!foundChildren) {
                             // now search for children
 
-                            let children: RemoteDebuggerVariable[] = ve.v;
+                            let children: vsrd_contracts.RemoteDebuggerVariable[] = ve.v;
                             if (children) {
                                 for (let i = 0; i < children.length; i++) {
                                     let c = children[i];
@@ -1631,7 +1423,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             };
 
             if (entry) {
-                let vars: RemoteDebuggerVariable[];
+                let vars: vsrd_contracts.RemoteDebuggerVariable[];
 
                 if (!vars && entry.v) {
                     for (let i = 0; i < entry.v.length; i++) {
