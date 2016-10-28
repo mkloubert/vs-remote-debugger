@@ -221,6 +221,21 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 }
 
 /**
+ * Describes a debugger entry favorite.
+ */
+export interface RemoteDebuggerFavorite {
+    /**
+     * The underlying entry.
+     */
+    entry: RemoteDebuggerEntry;
+    
+    /**
+     * The index beginning at 1.
+     */
+    index: number;
+}
+
+/**
  * The default size of a debugger message.
  */
 export const DEFAULT_MESSAGE_SIZE = 16777215;

@@ -18,6 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import * as vsrd_console from './console';
 import * as vsrd_contracts from './contracts';
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import { basename } from 'path';
@@ -44,6 +45,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _currentEntry: number = -1;
     /**
+     * Stores the console manager.
+     */
+    protected _console: vsrd_console.ConsoleManager;
+    /**
      * Stores if debug mode is enabled or not.
      */
     protected _isDebug = false;
@@ -58,7 +63,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * Stores the list of favorites.
      */
-    protected _favorites: { index: number, entry: vsrd_contracts.RemoteDebuggerEntry }[] = [];
+    protected _favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
     /**
      * The current server.
      */
@@ -86,6 +91,19 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     }
 
     /**
+     * Creates and sets up a console manager.
+     * 
+     * @param {vsrd_contracts.LaunchRequestArgument} args The launch arguments.
+     */
+    protected createConsoleManager(args: vsrd_contracts.LaunchRequestArguments): vsrd_console.ConsoleManager {
+        let me = this;
+        
+        let mgr = new vsrd_console.ConsoleManager(this);
+
+        return mgr;
+    }
+
+    /**
      * Gets the current entry.
      */
     public get entry(): vsrd_contracts.RemoteDebuggerEntry {
@@ -102,648 +120,144 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /** @inheritdoc */
     protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
         let me = this;
-        
-        let expr = args.expression;
-        if (!expr) {
-            expr = '';
-        }
 
-        let action = () => {
-            me.sendResponse(response);
-        };
-        let noBody = false;
-        let result: any;
-        let varRef: number = 0;
+        let handled = false;
+        let responseSend = false;
 
-        const REGEX_ADD = /^(add)([\s]?)([0-9]*)$/i;
-        const REGEX_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
-        const REGEX_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
-        const REGEX_LOAD = /^(load)([\s]*)([\S]*)$/i;
-        const REGEX_SAVE = /^(save)([\s]*)([\S]*)$/i;
-        const REGEX_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
-
-        if ('clear' == expr.toLowerCase().trim()) {
-            // clear
+        let c = me._console;
+        if (c) {
             
-            this._entries = [];
-            this._favorites = [];
-
-            result = 'Cleared';
-            action = () => {
-                me.gotoIndex(0, response);
-            };
-        }
-        else if ('continue' == expr.toLowerCase().trim()) {
-            // continue
-            
-            result = 'Running';
-            action = () => {
-                me._isPaused = false;
-                
-                me.sendResponse(response);
-            };
-        }
-        else if ('current' == expr.toLowerCase().trim()) {
-            // current
-            
-            result = 'Current index: ' + (this._currentEntry + 1);
-            action = () => {
-                me.sendResponse(response);
-            };
-        }
-        else if ('debug' == expr.toLowerCase().trim()) {
-            // debug
-            
-            result = 'Debug mode';
-            action = () => {
-                me._isDebug = true;
-                
-                me.sendResponse(response);
-            };
-        }
-        else if ('favs' == expr.toLowerCase().trim()) {
-            // favs
-
-            action = () => {
-                let output = '';
-
-                if (this._favorites.length > 0) {
-                    for (let i = 0; i < this._favorites.length; i++) {
-                        let fav = this._favorites[i];
-
-                        let file = '<???>';
-                        let line = '';
-                        if (fav.entry.s) {
-                            if (fav.entry.s.length > 0) {
-                                let firstStackFrame = fav.entry.s[0];
-
-                                file = firstStackFrame.f;
-                                if (firstStackFrame.l) {
-                                    line = ` (${firstStackFrame.l})`;
-                                }
-                            }
-                        }
-
-                        output += `[${fav.index}] ${file}${line}`;
-
-                        output += "\n";
-                    }
-                }
-                else {
-                    output = 'No favorites found!\n';
-                }
-
-                me.sendResponse(response);
-
-                me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
-            };
-        }
-        else if ('first' == expr.toLowerCase().trim()) {
-            // first
-            
-            let newIndex = 0;
-
-            result = 'New index: ' + (newIndex + 1);
-            action = () => {
-                me.gotoIndex(newIndex, response);
-            };
-        }
-        else if ('help' == expr.toLowerCase().trim() ||
-                 '?' == expr.toLowerCase().trim()) {
-            // first
-
-            let output = ' Command                                     | Description\n';
-               output += '---------------------------------------------|-----------------\n';
-               output += ' ?                                           | Shows that help screen\n';
-               output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite\n';
-               output += ' clear                                       | Removes all loaded entries and favorites\n';
-               output += ' continue                                    | Continues debugging\n';
-               output += ' current                                     | Displays current index\n';
-               output += ' debug                                       | Runs debugger itself in "debug mode"\n';
-               output += ' favs                                        | Lists all favorites\n';
-               output += ' first                                       | Jumps to first item\n';
-               output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
-               output += ' help                                        | Shows that help screen\n';
-               output += ' last                                        | Jumps to last entry\n';
-               output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Goes to a specific entry (beginning at 1) \n';
-               output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
-               output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
-               output += ' nofavs                                      | Clears all favorites"\n';
-               output += ' notes                                       | Clears all favorites"\n';
-               output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
-               output += ' refresh                                     | Refreshes the view\n';
-               output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
-               output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
-               output += ' state                                       | Displays the current debugger state\n';
-               output += ' toggle                                      | Toggles "paused" state\n';
-               output += ' wait                                        | Starts waiting for an entry\n';
-            
-            let newIndex = 0;
-
-            action = () => {
-                me.sendResponse(response);
-
-                me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
-            };
-        }
-        else if ('last' == expr.toLowerCase().trim()) {
-            // last
-            
-            let newIndex = me._entries.length - 1;
-            
-            result = 'New index: ' + (newIndex + 1);
-            action = () => {
-                me.gotoIndex(newIndex, response);
-            };
-        }
-        else if ('nodebug' == expr.toLowerCase().trim()) {
-            // nodebug
-            
-            result = 'Debug mode leaved';
-            action = () => {
-                me._isDebug = false;
-                
-                me.sendResponse(response);
-            };
-        }
-        else if ('nofavs' == expr.toLowerCase().trim()) {
-            // nofavs
-            
-            this._favorites = [];
-
-            result = 'Favorites cleared';
-        }
-        else if ('pause' == expr.toLowerCase().trim()) {
-            // pause
-            
-            result = 'Paused';
-            action = () => {
-                me._isPaused = true;
-                
-                me.sendResponse(response);
-            };
-        }
-        else if ('refresh' == expr.toLowerCase().trim()) {
-            // refresh
-            
-            let newIndex = me._currentEntry;
-            
-            result = 'Current index: ' + (newIndex + 1);
-            action = () => {
-                me.gotoIndex(newIndex, response);
-            };
-        }
-        else if ('state' == expr.toLowerCase().trim()) {
-            // state
-            
-            result = me._isPaused ? 'Paused' : 'Running';
-            action = () => {
-                me.sendResponse(response);
-            };
-        }
-        else if ('toggle' == expr.toLowerCase().trim()) {
-            // toggle
-            
-            result = !me._isPaused ? 'Paused' : 'Running';
-            action = () => {
-                me._isPaused = !me._isPaused;
-
-                me.sendResponse(response);
-            };
-        }
-        else if ('wait' == expr.toLowerCase().trim()) {
-            // wait
-
-            let newIndex = me._entries.length;
-            
-            result = 'Waiting...';
-            action = () => {
-                me.gotoIndex(newIndex, response);
-            };
-        }
-        else if (REGEX_ADD.test(expr.trim())) {
-            // add
-
-            let match = REGEX_ADD.exec(expr.trim());
-
-            let index = this._currentEntry + 1;
-            if ('' != match[3]) {
-                index = parseInt(match[3]);
-            }
-
-            let entry: vsrd_contracts.RemoteDebuggerEntry;
-            if (index <= this._entries.length) {
-                entry = this._entries[index - 1];
-            }
-
-            if (entry) {
-                let fav = { 
-                    index: index,
-                    entry: entry,
-                };
-
-                let exists = false;
-                for (let i = 0; i < this._favorites.length; i++) {
-                    if (this._favorites[i].index == index) {
-                        // do not add duplicates
-
-                        exists = true;
-                        break;
-                    }
-                }
-
-                if (!exists) {
-                    this._favorites.push(fav);
-
-                    this._favorites.sort((x, y) => {
-                        if (x.index > y.index) {
-                            return 1;
-                        }
-                        if (x.index < y.index) {
-                            return -1;
-                        }
-
-                        return 0;
-                    });
-                }
-
-                result = 'Added ' + fav.index + ' as favorite';
-            }
-            else {
-                if (this._entries.length > 0) {
-                    result = `Please select a valid index from 1 to ${this._entries.length}!`;
-                }
-                else {
-                    result = 'Please select an entry!';
-                }
-            }
-        }
-        else if (REGEX_GOTO.test(expr.trim())) {
-            // goto
-
-            let match = REGEX_GOTO.exec(expr.trim());
-            let newIndex = parseInt(match[3].trim());
-
-            result = 'New index: ' + (this._currentEntry + 1);
-            action = () => {
-                me.gotoIndex(newIndex - 1, response);
-            };
-        }
-        else if (REGEX_LIST.test(expr.trim())) {
-            // list
-
-            let match = REGEX_LIST.exec(expr.trim());
-
-            let itemsToSkip: number = 0;
-            if ('' != match[3]) {
-                itemsToSkip = parseInt(match[3]);
-            }
-
-            let itemsToDisplay: number = 50;
-            if ('' != match[5]) {
-                itemsToDisplay = parseInt(match[5]);
-            }
-
-            let newIndex = parseInt(match[3].trim());
-
-            action = () => {
-                let output: string = '';
-
-                let numberOfDisplayedItems = 0;
-                for (let i = 0; i < itemsToDisplay; i++) {
-                    let index = itemsToSkip + i;
-                    if (index >= me._entries.length) {
-                        // no more items to display
-                        break;
-                    }
-
-                    let entry = me._entries[index];
-                    if (!entry) {
-                        break;
-                    }
-
-                    ++numberOfDisplayedItems;
-
-                    let file = '<???>';
-                    let line = '';
-                    if (entry.s) {
-                        if (entry.s.length > 0) {
-                            let firstStackFrame = entry.s[0];
-
-                            file = firstStackFrame.f;
-                            if (firstStackFrame.l) {
-                                line = ` (${firstStackFrame.l})`;
-                            }
-                        }
-                    }
-
-                    output += `[${index + 1}] ${file}${line}`;
-
-                    output += "\n";
-                }
-
-                if (numberOfDisplayedItems < 1) {
-                    output = "No items found!\n";
-                }
-
-                me.sendResponse(response);
-                
-                me.sendEvent(new vscode_dbg_adapter.OutputEvent(output));
-            };
-        }
-        else if (REGEX_LOAD.test(expr.trim())) {
-            // load
-
-            let match = REGEX_LOAD.exec(expr.trim());
-            let file = match[3].trim();
-
-            action = () => {
-                let sendResponse = () => {
-                    me.sendResponse(response);
-                };
-
-                let showError = (err) => {
-                    me.log('[ERROR :: save()]: ' + err);
-                };
-
-                sendResponse();
-
-                try {
-                    if ('' == file) {
-                        let existingFileNames = FS.readdirSync(me._sourceRoot);
-                        let existingFiles: { path: string, stats: FS.Stats}[] = [];
-                        for (let i = 0; i < existingFileNames.length; i++) {
-                            let fileName = existingFileNames[i];
-                            if (!/^(vsrd_favs_)([0-9]+)(\.json)$/i.test(fileName.trim())) {
-                                continue;
-                            }
-
-                            let fullPath = Path.join(me._sourceRoot, fileName);
-                            
-                            let ls = FS.lstatSync(fullPath);
-                            if (ls.isFile()) {
-                                existingFiles.push({
-                                    path: fullPath,
-                                    stats: ls,
-                                });
-                            }
-                        }
-
-                        if (existingFiles.length > 0) {
-                            existingFiles.sort((x, y) => {
-                                if (x.stats.ctime.getTime() > y.stats.ctime.getTime()) {
-                                    return -1;
-                                }
-
-                                if (x.stats.ctime.getTime() < y.stats.ctime.getTime()) {
-                                    return 1;
-                                }
-
-                                return 0;
-                            });
-
-                            file = existingFiles[0].path;
-                        }
-                    }
-
-                    if ('' == file) {
-                        me.sendEvent(new vscode_dbg_adapter.OutputEvent("Please select a file!"));
+            let result: vsrd_console.ExecuteCommandResult = {
+                args: args,
+                body: function(b?) {
+                    let r: DebugProtocol.EvaluateResponse = response;
+                    if (!r) {
                         return;
                     }
 
-                    if (!Path.isAbsolute(file)) {
-                        file = Path.join(me._sourceRoot, file);
-                    }
+                    if (arguments.length > 0) {
+                        let newBody: vsrd_console.ExecuteCommandResponseBody;
+                        
+                        if (b || '' === b) {
+                            if (typeof b === 'string' || b instanceof String) {
+                                b = {
+                                    result: '' + b,
+                                    variablesReference: 0,
+                                };
+                            }
 
-                    let loadedEntries: vsrd_contracts.RemoteDebuggerEntry[] = require(file);
-                    if (loadedEntries && loadedEntries.length) {
-                        let loadedEntryCount = 0;
-                        for (let i = 0; i < loadedEntries.length; i++) {
-                            let entry = loadedEntries[i];
-                            if (entry) {
-                                me._entries.push(entry);
-                                ++loadedEntryCount;
+                            newBody = b;
+                            if (!newBody.result) {
+                                newBody.result = '';
+                            }
+                            if (!newBody.variablesReference) {
+                                newBody.variablesReference = 0;
                             }
                         }
 
-                        if (loadedEntries.length > 0) {
-                            me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Loaded ${loadedEntryCount} entries from '${file}'`));
+                        r.body = <any>newBody;
+                    }
 
-                            me.gotoIndex(me._currentEntry);
+                    return r.body;
+                },
+                currentIndex: function(nv?) {
+                    if (arguments.length > 0) {
+                        me._currentEntry = nv;
+                    }
+
+                    return me._currentEntry;
+                },
+                entries: function(e?) {
+                    if (arguments.length > 0) {
+                        me._entries = e;
+                    }
+
+                    return me._entries;
+                },
+                favorites: function(f?) {
+                    if (arguments.length > 0) {
+                        me._favorites = f;
+                    }
+
+                    return me._favorites;
+                },
+                gotoIndex: function(newIndex?: number, response?: DebugProtocol.EvaluateResponse) {
+                    if (arguments.length < 1) {
+                        me.gotoIndex();
+                    }
+                    else if (arguments.length < 2) {
+                        me.gotoIndex(newIndex);
+                    }
+                    else {
+                        me.gotoIndex(newIndex, response);
+                    }
+                },
+                handled: false,
+                isDebug: function(nv?) {
+                    if (arguments.length > 0) {
+                        me._isDebug = nv;
+                    }
+
+                    return me._isDebug;
+                },
+                isPaused: function(nv?) {
+                    if (arguments.length > 0) {
+                        me._isPaused = nv;
+                    }
+
+                    return me._isPaused;
+                },
+                sendEvent: function(e?) {
+                    if (e) {
+                        me.sendEvent(e);
+                    }
+                },
+                sendResponse: function(r?) {
+                    if (!responseSend) {
+                        responseSend = true;
+                    
+                        if (arguments.length < 1) {
+                            r = response;
+                        }
+
+                        if (r) {
+                            me.sendResponse(r);
                         }
                     }
-                }
-                catch (e) {
-                    showError(e);
+                },
+                sourceRoot: function() {
+                    return me._sourceRoot;
+                },
+                write: function(m?) {
+                    if (m) {
+                        this.sendEvent(new vscode_dbg_adapter.OutputEvent('' + m));
+                    }
+                },
+                writeLine: function(m?) {
+                    if (!m) {
+                        m = '';
+                    }
+
+                    this.write(m + '\n');
                 }
             };
-        }
-        else if (REGEX_SAVE.test(expr.trim())) {
-            // save
 
-            let match = REGEX_SAVE.exec(expr.trim());
-            let file = match[3].trim();
-
-            action = () => {
-                let sendResponse = () => {
-                    me.sendResponse(response);
-                };
-
-                let showError = (err) => {
-                    me.log('[ERROR :: save()]: ' + err);
-                };
-
-                if (me._favorites.length > 0) {
-                    try {
-                        
-                        if ('' == file) {
-                            // auto save
-
-                            let now = new Date();
-
-                            let index: number = -1;
-                            let baseName = 'vsrd_favs_' + now.getTime();
-                            let fullPath: string;
-                            let stats: FS.Stats;
-                            
-                            let exists: boolean;
-                            do {
-                                exists = false;
-
-                                try {
-                                    let fileName = baseName;
-                                    if (index > -1) {
-                                        fileName += '_' + index;
-                                    }
-                                    fileName += '.json';
-
-                                    fullPath = Path.join(this._sourceRoot, fileName);
-
-                                    exists = FS.lstatSync(fullPath).isFile();
-                                }
-                                catch (e) {
-                                    exists = false;
-                                }
-                            }
-                            while (exists);
-
-                            file = fullPath;
-                        }
-
-                        if (!Path.isAbsolute(file)) {
-                            file = Path.join(this._sourceRoot, file);
-                        }
-
-                        let saveFavs = () => {
-                            sendResponse();
-
-                            try {
-                                let jsons: string[] = [];
-
-                                for (let i = 0; i < me._favorites.length; i++) {
-                                    let fav = me._favorites[i];
-                                    if (!fav) {
-                                        continue;
-                                    }
-
-                                    jsons.push(JSON.stringify(fav.entry, null, 2));
-                                }
-
-                                FS.writeFileSync(file, '[\n' + jsons.join(', ') + '\n]', {
-                                    encoding: 'utf8'
-                                });
-
-                                me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Saved favorites to '${file}'`));
-                            }
-                            catch (e) {
-                                showError(e);
-                            }
-                        };
-
-                        try {
-                            let stats = FS.lstatSync(file);
-                            
-                            if (stats.isFile()) {
-                                FS.unlinkSync(file);
-                            }
-                        }
-                        catch (e) {
-                        }
-
-                        saveFavs();
-                    }
-                    catch (e) {
-                        sendResponse();
-                        
-                        showError(e);
-                    }
-                }
-                else {
-                    sendResponse();
-                    
-                    me.sendEvent(new vscode_dbg_adapter.OutputEvent("No favorites available."));
-                }
+            try {
+                c.evaluateRequest(result);
             }
+            catch (e) {
+                //TODO: output error
+            }
+
+            handled = result.handled;
         }
-        else if (REGEX_SEND.test(expr.trim())) {
-            // send
 
-            action = () => {
-                let match = REGEX_SEND.exec(expr.trim());
-
-                let host = match[3].toLowerCase().trim();
-                
-                let port = vsrd_contracts.DEFAULT_PORT;
-                if ('' !== match[5]) {
-                    port = parseInt(match[5]);
-                }
-
-                let output = '';
-
+        if (!handled) {
+            response.body = null;
+            
+            if (!responseSend) {
                 me.sendResponse(response);
-
-                if (me._favorites.length > 0) {
-                    let showError = (err) => {
-                        me.sendEvent(new vscode_dbg_adapter.OutputEvent('[ERROR :: send()]: ' + err + '\n'));
-                    };
-
-                    let favs = me._favorites;
-                    
-                    let finished = () => {
-                        if (favs && favs.length > 0) {
-                            me.sendEvent(new vscode_dbg_adapter.OutputEvent(`Send favorites to '${host}:${port}'\n`));
-                        }
-                    };
-
-                    let i = -1;
-                    let sendNext: () => void;
-                    sendNext = () => {
-                        ++i;
-                        
-                        if (!favs) {
-                            finished();
-                            return;
-                        }
-
-                        if (i >= me._favorites.length) {
-                            finished();
-                            return;
-                        }
-                        
-                        try {
-                            let json = new Buffer(JSON.stringify(favs[i].entry),
-                                                  'utf8');
-
-                            let dataLength = Buffer.alloc(4);
-                            dataLength.writeUInt32LE(json.length, 0);
-
-                            let client = new Net.Socket();
-
-                            client.on('error', function(err) {
-                                showError(err);
-
-                                sendNext();
-                            });
-
-                            client.connect(port, host, () => {
-                                try {
-                                    client.write(dataLength);
-                                    client.write(json);
-
-                                    client.destroy();
-                                }
-                                catch (e) {
-                                    showError(e);
-                                }
-
-                                sendNext();
-                            });
-                        }
-                        catch (e) {
-                            showError(e);
-                        }
-                    };
-
-                    sendNext();
-                }
-                else {
-                    me.sendEvent(new vscode_dbg_adapter.OutputEvent('Nothing to send!\n'));
-                }
-            };
-        }
-        else {
-            noBody = true;
-        }
-
-        if (!noBody) {
-            response.body = {
-                result: result,
-                variablesReference: varRef,
-            };
-        }
-
-        if (action) {
-            action();
+            }
         }
     }
 
@@ -860,6 +374,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         let me = this;
 
         me._sourceRoot = args.localSourceRoot;
+        me._console = me.createConsoleManager(args);
 
         this.startServer({
             apps: args.apps,
