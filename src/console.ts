@@ -300,8 +300,9 @@ export class ConsoleManager {
      * 'favs' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_favs(result: ExecuteCommandResult): void {
+    protected cmd_favs(result: ExecuteCommandResult, me: ConsoleManager): void {
         let output = '';
 
         let favorites = result.favorites();
@@ -309,44 +310,19 @@ export class ConsoleManager {
             for (let i = 0; i < favorites.length; i++) {
                 let fav = favorites[i];
 
-                let file = '<???>';
-                let line = '';
-                if (fav.entry.s) {
-                    if (fav.entry.s.length > 0) {
-                        let firstStackFrame = fav.entry.s[0];
-
-                        file = firstStackFrame.f;
-                        if (firstStackFrame.l) {
-                            line = ` (${firstStackFrame.l})`;
-                        }
-                    }
-                }
-
-                let prefix = `[${fav.index}] `;
-
-                output += `${prefix}${file}${line}`;
-
-                // additional information / notes
-                let notes = fav.entry.n;
-                if (notes) {
-                    output += '\n';
-                    for (let j = 0; j < prefix.length; j++) {
-                        output += ' ';
-                    }
-
-                    output += notes;
-                }
-
-                output += "\n";
+                output += me.toListEntryString(fav.entry, fav.index) + "\n";
             }
         }
         else {
-            output = 'No favorites found!\n';
+            output = null;
+            result.body('No favorites found.');
         }
 
         result.sendResponse();
 
-        result.write(output);
+        if (output) {
+            result.write(output);
+        }
     }
 
     /**
@@ -465,8 +441,9 @@ export class ConsoleManager {
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying manager.
      */
-    protected cmd_list(result: ExecuteCommandResult, match: RegExpExecArray): void {
+    protected cmd_list(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
 
         let itemsToSkip: number = 0;
@@ -497,36 +474,7 @@ export class ConsoleManager {
             }
 
             ++numberOfDisplayedItems;
-
-            let file = '<???>';
-            let line = '';
-            if (entry.s) {
-                if (entry.s.length > 0) {
-                    let firstStackFrame = entry.s[0];
-
-                    file = firstStackFrame.f;
-                    if (firstStackFrame.l) {
-                        line = ` (${firstStackFrame.l})`;
-                    }
-                }
-            }
-
-            let prefix = `[${index + 1}] `;
-
-            output += `${prefix}${file}${line}`;
-
-            // additional information / notes
-            let notes = entry.n;
-            if (notes) {
-                output += '\n';
-                for (let j = 0; j < prefix.length; j++) {
-                    output += ' ';
-                }
-
-                output += notes;
-            }
-
-            output += "\n";
+            output += me.toListEntryString(entry, index + 1) + "\n";
         }
 
         if (numberOfDisplayedItems < 1) {
@@ -1064,7 +1012,6 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     public evaluateRequest(result: ExecuteCommandResult): void {
-        let me = this;
         let session: any = this._session;
 
         let expr = result.args.expression;
@@ -1072,16 +1019,16 @@ export class ConsoleManager {
             expr = '';
         }
 
-        let action: (result: ExecuteCommandResult) => void;
+        let action: (result: ExecuteCommandResult, me: ConsoleManager) => void;
         
         let toRegexAction: (actionToWrap: (result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager) => void,
-                            regex: RegExp, expr: string) => (result: ExecuteCommandResult) => void;
+                            regex: RegExp, expr: string) => (result: ExecuteCommandResult, me: ConsoleManager) => void;
         toRegexAction = (actionToWrap, regex, expr) => {
             let match = regex.exec(expr);
 
-            return (r) => {
+            return (result, me) => {
                 if (actionToWrap) {
-                    actionToWrap(r, match, me);
+                    actionToWrap(result, match, me);
                 }
             };
         };
@@ -1090,105 +1037,105 @@ export class ConsoleManager {
         let lowerExpr = trimmedExpr.toLowerCase();
 
         if ('+' == lowerExpr || 'next' == lowerExpr) {
-            action = me.cmd_next;
+            action = this.cmd_next;
         }
         else if ('-' == lowerExpr || 'prev' == lowerExpr) {
-            action = me.cmd_prev;
+            action = this.cmd_prev;
         }
         else if ('all' == lowerExpr) {
-            action = me.cmd_all;
+            action = this.cmd_all;
         }
         else if ('clear' == lowerExpr) {
-            action = me.cmd_clear;
+            action = this.cmd_clear;
         }
         else if ('continue' == lowerExpr) {
-            action = me.cmd_continue;
+            action = this.cmd_continue;
         }
         else if ('current' == lowerExpr) {
-            action = me.cmd_current;
+            action = this.cmd_current;
         }
         else if ('debug' == lowerExpr) {
-            action = me.cmd_debug;
+            action = this.cmd_debug;
         }
         else if ('favs' == lowerExpr) {
-            action = me.cmd_favs;
+            action = this.cmd_favs;
         }
         else if ('first' == lowerExpr) {
-            action = me.cmd_first;
+            action = this.cmd_first;
         }
         else if ('friends' == lowerExpr) {
-            action = me.cmd_friends;
+            action = this.cmd_friends;
         }
         else if ('help' == lowerExpr || '?' == lowerExpr) {
-            action = me.cmd_help;
+            action = this.cmd_help;
         }
         else if ('last' == lowerExpr) {
-            action = me.cmd_last;
+            action = this.cmd_last;
         }
         else if ('nodebug' == lowerExpr) {
-            action = me.cmd_nodebug;
+            action = this.cmd_nodebug;
         }
         else if ('nofavs' == lowerExpr || 'none' == lowerExpr) {
-            action = me.cmd_none;
+            action = this.cmd_none;
         }
         else if ('pause' == lowerExpr) {
-            action = me.cmd_pause;
+            action = this.cmd_pause;
         }
         else if ('refresh' == lowerExpr) {
-            action = me.cmd_refresh;
+            action = this.cmd_refresh;
         }
         else if ('state' == lowerExpr) {
-            action = me.cmd_state;
+            action = this.cmd_state;
         }
         else if ('toggle' == lowerExpr) {
-            action = me.cmd_toggle;
+            action = this.cmd_toggle;
         }
         else if ('wait' == lowerExpr) {
-            action = me.cmd_wait;
+            action = this.cmd_wait;
         }
         else if (REGEX_CMD_ADD.test(trimmedExpr)) {
             // add
-            action = toRegexAction(me.cmd_add,
+            action = toRegexAction(this.cmd_add,
                                    REGEX_CMD_ADD, trimmedExpr);
         }
         else if (REGEX_CMD_GOTO.test(trimmedExpr)) {
             // goto
-            action = toRegexAction(me.cmd_goto,
+            action = toRegexAction(this.cmd_goto,
                                    REGEX_CMD_GOTO, trimmedExpr);
         }
         else if (REGEX_CMD_LIST.test(trimmedExpr)) {
             // list
-            action = toRegexAction(me.cmd_list,
+            action = toRegexAction(this.cmd_list,
                                    REGEX_CMD_LIST, trimmedExpr);
         }
         else if (REGEX_CMD_LOAD.test(trimmedExpr)) {
             // load
-            action = toRegexAction(me.cmd_load,
+            action = toRegexAction(this.cmd_load,
                                    REGEX_CMD_LOAD, trimmedExpr);
         }
         else if (REGEX_CMD_SAVE.test(trimmedExpr)) {
             // save
-            action = toRegexAction(me.cmd_save,
+            action = toRegexAction(this.cmd_save,
                                    REGEX_CMD_SAVE, trimmedExpr);
         }
         else if (REGEX_CMD_SEND.test(trimmedExpr)) {
             // send
-            action = toRegexAction(me.cmd_send,
+            action = toRegexAction(this.cmd_send,
                                    REGEX_CMD_SEND, trimmedExpr);
         }
         else if (REGEX_CMD_SET.test(trimmedExpr)) {
             // set
-            action = toRegexAction(me.cmd_set,
+            action = toRegexAction(this.cmd_set,
                                    REGEX_CMD_SET, trimmedExpr);
         }
         else if (REGEX_CMD_SHARE.test(trimmedExpr)) {
             // share
-            action = toRegexAction(me.cmd_share,
+            action = toRegexAction(this.cmd_share,
                                    REGEX_CMD_SHARE, trimmedExpr);
         }
         else if (REGEX_CMD_UNSET.test(trimmedExpr)) {
             // unset
-            action = toRegexAction(me.cmd_unset,
+            action = toRegexAction(this.cmd_unset,
                                    REGEX_CMD_UNSET, trimmedExpr);
         }
 
@@ -1196,7 +1143,7 @@ export class ConsoleManager {
             result.handled = true;
             result.body('');
 
-            action(result);
+            action(result, this);
         }
     }
 
@@ -1246,5 +1193,91 @@ export class ConsoleManager {
                 }
             });
         });
+    }
+
+    /**
+     * Converts a value to a Date object.
+     * 
+     * @param {any} [val] The input value.
+     * 
+     * @return {Date} The output value.
+     */
+    protected toDate(val?: Date | string): Date {
+        try {
+            if (val) {
+                if (val instanceof Date) {
+                    return val;
+                }
+
+                val = ('' + val).trim();
+            }
+            
+            if (!val) {
+                return;
+            }
+            
+            return new Date(<string>val);
+        }
+        catch (e) {
+            return;  // ignore
+        }
+    }
+
+    /**
+     * Creates a "list entry" string for an entry.
+     * 
+     * @param {vsrd_contracts.RemoteDebuggerEntry} [entry] The entry.
+     * @param {number} [index] The index to display.
+     */
+    protected toListEntryString(entry?: vsrd_contracts.RemoteDebuggerEntry, index?: number): string {
+        if (!entry) {
+            return;
+        }
+
+        let str: string = '';
+
+        let file = '<???>';
+        let line = '';
+        if (entry.s) {
+            if (entry.s.length > 0) {
+                let firstStackFrame = entry.s[0];
+
+                file = firstStackFrame.f;
+                if (firstStackFrame.l) {
+                    line = ` (${firstStackFrame.l})`;
+                }
+            }
+        }
+
+        // prefix
+        let prefix = '';
+        if (arguments.length > 1) {
+            prefix += `[${index}] `;
+        }
+
+        let prefixSpaces = ' '.repeat(prefix.length);
+
+        let origin = '';
+        if (entry.__origin) {
+            let sendTime: any = this.toDate(entry.__origin.time);
+            if (sendTime) {
+                sendTime = ` (${sendTime})`;
+            }
+            else {
+                sendTime = '';
+            }
+
+            origin += `\n${prefixSpaces}From:  '${entry.__origin.address}:${entry.__origin.port}'${sendTime}`;
+        }
+
+        // additional information / notes
+        let notes = '';
+        if (entry.n) {
+            notes += `\n${prefixSpaces}Notes: ${entry.n}`;
+        }
+
+        str += `${prefix}${file}${line}${notes}${origin}`;
+
+        return str;
     }
 }

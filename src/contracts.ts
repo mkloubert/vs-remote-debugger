@@ -65,6 +65,26 @@ export interface RemoteDebuggerEntry {
     n?: string;
 
     /**
+     * The first machine that sends the entry.
+     */
+    __origin?: {
+        /**
+         * The address / hostname.
+         */
+        address?: string;
+
+        /**
+         * The TCP port.
+         */
+        port?: number;
+
+        /**
+         * The timestamp.
+         */
+        time?: Date,
+    },
+
+    /**
      * The stacktrace.
      */
     s?: RemoteDebuggerStackFrame[];
@@ -73,6 +93,11 @@ export interface RemoteDebuggerEntry {
      * The list of threads.
      */
     t?: RemoteDebuggerThread[];
+
+    /**
+     * The time the entry has arrived.
+     */
+    __time?: Date;
 
     /**
      * The list of variables.

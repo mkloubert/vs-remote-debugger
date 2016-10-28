@@ -734,6 +734,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 socket.on('end', () => {
                     try {
+                        let now = new Date();
+
                         if (!buff || buff.length < 1) {
                             return;
                         }
@@ -743,6 +745,15 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         let entry: vsrd_contracts.RemoteDebuggerEntry = JSON.parse(json);
                         if (!entry) {
                             return;
+                        }
+
+                        entry.__time = now;
+                        if (!entry.__origin) {
+                            entry.__origin = {
+                                address: socket.remoteAddress,
+                                port: socket.remotePort,
+                                time: now,
+                            };
                         }
 
                         if (me._isPaused) {
