@@ -57,7 +57,7 @@ export interface ExecuteCommandResponseBody {
 }
 
 /**
- * Describes on object for a command execution result.
+ * Describes on object for handling a command execution result.
  */
 export interface ExecuteCommandResult {
     /**
@@ -89,6 +89,11 @@ export interface ExecuteCommandResult {
      * Gets or sets the list of favorites.
      */
     favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.RemoteDebuggerFavorite[];
+
+    /**
+     * Gets the list of friends.
+     */
+    friends(): vsrd_contracts.Friend[];
 
     /**
      * Jumps to a specific entry.
@@ -292,18 +297,6 @@ export class ConsoleManager {
     }
 
     /**
-     * 'first' command
-     * 
-     * @param {ExecuteCommandResult} result The object for handling the result.
-     */
-    protected cmd_first(result: ExecuteCommandResult): void {
-        result.body("New index: 1");
-        result.sendResponse();
-
-        result.gotoIndex(0);        
-    }
-
-    /**
      * 'favs' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -357,6 +350,45 @@ export class ConsoleManager {
     }
 
     /**
+     * 'first' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_first(result: ExecuteCommandResult): void {
+        result.body("New index: 1");
+        result.sendResponse();
+
+        result.gotoIndex(0);        
+    }
+
+    /**
+     * 'friends' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_friends(result: ExecuteCommandResult): void {
+        let friends = result.friends();
+
+        if (friends.length > 0) {
+            result.sendResponse();
+
+            let output = '';
+
+            for (let i = 0; i < friends.length; i++) {
+                let f = friends[i];
+
+                output += `[${i + 1}] ${f.name} => ${f.address}:${f.port}\n`;
+            }
+
+            result.write(output);
+        }
+        else {
+            result.body('No friends found.');
+            result.sendResponse();
+        }
+    }
+
+    /**
      * 'goto' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -389,6 +421,7 @@ export class ConsoleManager {
            output += ' current                                     | Displays current index\n';
            output += ' debug                                       | Runs debugger itself in "debug mode"\n'; 
            output += ' favs                                        | Lists all favorites\n';
+           output += ' friends                                     | Displays the list of friends\n';
            output += ' first                                       | Jumps to first item\n';
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
            output += ' last                                        | Jumps to last entry\n';
@@ -1014,6 +1047,9 @@ export class ConsoleManager {
         }
         else if ('first' == expr.toLowerCase().trim()) {
             action = me.cmd_first;
+        }
+        else if ('friends' == expr.toLowerCase().trim()) {
+            action = me.cmd_friends;
         }
         else if ('help' == expr.toLowerCase().trim() ||
                  '?' == expr.toLowerCase().trim()) {

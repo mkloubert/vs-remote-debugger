@@ -49,6 +49,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _console: vsrd_console.ConsoleManager;
     /**
+     * List of friends.
+     */
+    protected _friends: vsrd_contracts.Friend[];
+    /**
      * Stores if debug mode is enabled or not.
      */
     protected _isDebug = false;
@@ -182,6 +186,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                     return me._favorites;
                 },
+                friends: () => me._friends,
                 gotoIndex: function(newIndex?: number, response?: DebugProtocol.EvaluateResponse) {
                     if (arguments.length < 1) {
                         me.gotoIndex();
@@ -376,6 +381,81 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         me._sourceRoot = args.localSourceRoot;
         me._console = me.createConsoleManager(args);
+
+        // load friends
+        me._friends = [];
+
+        let findDefaultName = () => {
+            let defName: string;
+            let i = 0;
+            let nameExists: boolean;
+            do {
+                nameExists = false;
+
+                defName = '#' + ++i;
+                
+                for (let j = 0; j < me._friends.length; j++) {
+                    if (me._friends[j].name == defName) {
+                        nameExists = true;
+                        break;
+                    }
+                }    
+            }
+            while (nameExists);
+
+            return defName;
+        };
+
+        if (args.friends) {
+            for (let i = 0; i < args.friends.length; i++) {
+                let friend = args.friends[i];
+                if (friend) {
+                    friend = ('' + friend).trim();
+                }
+
+                if (!friend) {
+                    continue;
+                }
+
+                let newEntry: vsrd_contracts.Friend = {
+                    address: friend,
+                    port: vsrd_contracts.DEFAULT_PORT,
+                };
+
+                // friend name
+                let addrNameSeparator = newEntry.address.indexOf('=');
+                if (addrNameSeparator > -1) {
+                    newEntry.name = newEntry.address.substr(addrNameSeparator + 1).trim();
+
+                    newEntry.address = newEntry.address.substr(0, addrNameSeparator).trim();
+                }
+
+                // TCP port
+                let addrPortSeparator = newEntry.address.indexOf(':');
+                if (addrPortSeparator > -1) {
+                    let fp = newEntry.address.substr(addrPortSeparator + 1).trim();
+                    if (fp) {
+                        newEntry.port = parseInt(fp);
+                    }
+
+                    newEntry.address = newEntry.address.substr(0, addrPortSeparator).trim();
+                }
+
+                if (newEntry.address && !isNaN(newEntry.port)) {
+                    // normalize and add entry
+                    // if data is valid
+                    
+                    newEntry.address = newEntry.address.toLowerCase().trim();
+                    
+                    if (!newEntry.name) {
+                        newEntry.name = findDefaultName();
+                    }
+                    newEntry.name = newEntry.name.toLowerCase().trim();
+
+                    me._friends.push(newEntry);
+                }
+            }
+        }
 
         this.startServer({
             apps: args.apps,

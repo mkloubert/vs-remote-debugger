@@ -21,6 +21,26 @@
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 /**
+ * A friend entry.
+ */
+export interface Friend {
+    /**
+     * The target address.
+     */
+    address: string;
+    
+    /**
+     * The name.
+     */
+    name?: string;
+
+    /**
+     * The TCP port.
+     */
+    port?: number;
+}
+
+/**
  * Describes a debugger entry.
  */
 export interface RemoteDebuggerEntry {
@@ -198,6 +218,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
      * Name of the target clients.
      */
     clients?: string[];
+
+    /**
+     * List of friends.
+     */
+    friends?: string[];
 
     /**
      * Defines if the debugger should start in debug mode or not.
