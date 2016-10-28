@@ -217,6 +217,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                     return me._isPaused;
                 },
+                nick: () => me._context.nick(),
                 sendEvent: function(e?) {
                     if (e) {
                         me.sendEvent(e);
@@ -383,8 +384,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         
         let me = this;
 
+        let nickname: string;
+        if (args.nick) {
+            nickname = args.nick.trim();
+        }
+
         this._context = {
             friends: () => me._friends,
+            nick: () => nickname,
             session: me,
         };
 

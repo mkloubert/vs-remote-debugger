@@ -30,6 +30,11 @@ export interface DebuggerContext {
     friends(): Friend[];
 
     /**
+     * Gets the nickname.
+     */
+    nick(): string;
+
+    /**
      * Gets the underlying session.
      */
     session: any;
@@ -93,6 +98,26 @@ export interface RemoteDebuggerEntry {
      * The name of the file.
      */
     f?: string;
+
+    /**
+     * List of log messages.
+     */
+    __logs?: {
+        /**
+         * The name of the author.
+         */
+        author?: string;
+
+        /**
+         * The message.
+         */
+        message?: string;
+
+        /**
+         * The log time.
+         */
+        time?: Date,
+    }[],
 
     /**
      * Notes
@@ -303,6 +328,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
      * The maximum size in bytes a debug entry can have.
      */
     maxMessageSize?: number;
+
+    /**
+     * The nickname of the debugger's user.
+     */
+    nick?: string;
 
     /**
      * The TCP port.

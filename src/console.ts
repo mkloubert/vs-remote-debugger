@@ -28,8 +28,10 @@ import Net = require('net');
 
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
+const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
+const REGEX_CMD_LOG = /^(log)([\s])(.*)$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
@@ -116,6 +118,11 @@ export interface ExecuteCommandResult {
      * Gets or sets if debugger runs in debug mode or not.
      */
     isPaused(newValue?: boolean): boolean;
+
+    /**
+     * Gets the nickname.
+     */
+    nick(): string;
 
     /**
      * Sends an event.
@@ -413,7 +420,7 @@ export class ConsoleManager {
            output += ' ?                                           | Shows that help screen\n';
            output += ' +                                           | Goes to next entry\n';
            output += ' -                                           | Goes to previous entry\n';
-           output += ' add [$INDEXS]                               | Adds the current or specific entries as favorites\n';
+           output += ' add [$INDEXES]                              | Adds the current or specific entries as favorites\n';
            output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
            output += ' continue                                    | Continues debugging\n';
@@ -423,9 +430,11 @@ export class ConsoleManager {
            output += ' friends                                     | Displays the list of friends\n';
            output += ' first                                       | Jumps to first item\n';
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
+           output += ' history [$INDEXES]                          | List the logs of one or more entry\n';
            output += ' last                                        | Jumps to last entry\n';
            output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Lists a number of entries\n';
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
+           output += ' log $MESSAGE                                | Adds a log message to the current entry\n';
            output += ' me                                          | Lists all network interfaces of that machine\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
            output += ' none                                        | Clears all favorites\n';
@@ -438,13 +447,97 @@ export class ConsoleManager {
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
            output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
-           output += ' unset [$INDEXS]                             | Removes the additional information that is stored in one or more entry\n';
+           output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
            output += ' wait                                        | Starts waiting for an entry\n';
             
         result.body('');
         result.sendResponse();
 
         result.write(output);
+    }
+
+    /**
+     * 'cmd_history' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_history(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let entries = result.entries();
+
+        let ranges = me.toNumberRanges(match[3]);
+        if (ranges.length < 1) {
+            if (result.currentEntry()) {
+                ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
+            }
+            else {
+                ranges = null;
+
+                if (entries.length > 0) {
+                    result.body(`Please select valid indexes from 1 to ${entries.length}!`);
+                }
+                else {
+                    result.body('Please select an entry!');
+                }
+            }
+        }
+
+        if (null !== ranges) {
+            let addFavs: number[] = [];
+
+            for (let i = 0; i < ranges.length; i++) {
+                let r = ranges[i];
+
+                for (let j = 0; j < entries.length; j++) {
+                    let index = j + 1;
+
+                    if (!r.isInRange(index)) {
+                        continue;
+                    }
+
+                    let e = entries[j];
+                    result.writeLine(me.toShortListEntryString(e, index));
+
+                    if (e.__logs && e.__logs.length && e.__logs.length > 0) {
+                        let logIndex = 0;
+                        for (let k = 0; k < e.__logs.length; k++) {
+                            let log = e.__logs[k];
+                            if (!log) {
+                                continue;
+                            }
+
+                            if (!log.message) {
+                                continue;
+                            }
+
+                            ++logIndex;
+                            
+                            let author = '';
+                            if (log.author) {
+                                author = ` - ${log.author.trim()}`;
+                            }
+
+                            let time = '';
+                            let logTime = me.toDateString(log.time);
+                            if (logTime) {
+                                time = ` [${logTime}]`;
+                            }
+
+                            let prefix = `    #${logIndex}`;
+
+                            result.writeLine(`${prefix}${time}${author}`);
+                            result.writeLine(`${' '.repeat(prefix.length + 1)}${log.message}`);
+                        }
+                    }
+                    else {
+                        result.writeLine('\tNo logs!');
+                    }
+                }
+            }
+        }
+
+        result.sendResponse();
     }
 
     /**
@@ -597,6 +690,44 @@ export class ConsoleManager {
         catch (e) {
             showError(e);
         }
+    }
+
+    /**
+     * 'log' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_log(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let now = new Date();
+        
+        let msg = match[3];
+        if (msg) {
+            let index = result.currentIndex();
+            let entry = result.currentEntry();
+            if (entry) {
+                if (!entry.__logs) {
+                    entry.__logs = [];
+                }
+
+                entry.__logs.push({
+                    author: result.nick(),
+                    message: msg,
+                    time: now,
+                });
+
+                result.body(`Add log for ${index + 1}`);
+            }
+            else {
+                result.body('Please select an entry!');
+            }
+        }
+        else {
+            result.body('Nothing to log!');
+        }
+
+        result.sendResponse();
     }
 
     /**
@@ -1244,6 +1375,11 @@ export class ConsoleManager {
             action = toRegexAction(this.cmd_goto,
                                    REGEX_CMD_GOTO, trimmedExpr);
         }
+        else if (REGEX_CMD_HISTORY.test(trimmedExpr)) {
+            // history
+            action = toRegexAction(this.cmd_history,
+                                   REGEX_CMD_HISTORY, trimmedExpr);
+        }
         else if (REGEX_CMD_LIST.test(trimmedExpr)) {
             // list
             action = toRegexAction(this.cmd_list,
@@ -1253,6 +1389,11 @@ export class ConsoleManager {
             // load
             action = toRegexAction(this.cmd_load,
                                    REGEX_CMD_LOAD, trimmedExpr);
+        }
+        else if (REGEX_CMD_LOG.test(trimmedExpr)) {
+            // log
+            action = toRegexAction(this.cmd_log,
+                                   REGEX_CMD_LOG, trimmedExpr);
         }
         else if (REGEX_CMD_SAVE.test(trimmedExpr)) {
             // save
@@ -1370,6 +1511,33 @@ export class ConsoleManager {
     }
 
     /**
+     * Converts a date to a string.
+     * 
+     * @param {any} [val] The value to convert.
+     * @param {boolean} [withTime] With time or not.
+     * 
+     * @return {string} The value as string.
+     */
+    protected toDateString(val?: Date | string, withTime: boolean = true): string {
+        val = this.toDate(val);
+        if (!val) {
+            return;
+        }
+
+        let padLeft = (n: number): string => {
+            let s = '' + n;
+            if (n < 10) {
+                s = '0' + s;
+            }
+
+            return s;
+        };
+
+        return `${val.getFullYear()}-${padLeft(val.getMonth() + 1)}-${padLeft(val.getDate())}` + 
+               (withTime ? ` ${padLeft(val.getHours())}:${padLeft(val.getMinutes())}:${padLeft(val.getSeconds())}` : '');
+    }
+
+    /**
      * Creates a "list entry" string for an entry.
      * 
      * @param {vsrd_contracts.RemoteDebuggerEntry} [entry] The entry.
@@ -1405,7 +1573,7 @@ export class ConsoleManager {
 
         let origin = '';
         if (entry.__origin) {
-            let sendTime: any = this.toDate(entry.__origin.time);
+            let sendTime: any = this.toDateString(entry.__origin.time);
             if (sendTime) {
                 sendTime = ` (${sendTime})`;
             }
@@ -1511,5 +1679,42 @@ export class ConsoleManager {
         }
 
         return ranges;
+    }
+
+    /**
+     * Creates a "short list entry" string for an entry.
+     * 
+     * @param {vsrd_contracts.RemoteDebuggerEntry} [entry] The entry.
+     * @param {number} [index] The index to display.
+     */
+    protected toShortListEntryString(entry?: vsrd_contracts.RemoteDebuggerEntry, index?: number): string {
+        if (!entry) {
+            return;
+        }
+
+        let str: string = '';
+
+        let file = '<???>';
+        let line = '';
+        if (entry.s) {
+            if (entry.s.length > 0) {
+                let firstStackFrame = entry.s[0];
+
+                file = firstStackFrame.f;
+                if (firstStackFrame.l) {
+                    line = ` (${firstStackFrame.l})`;
+                }
+            }
+        }
+
+        // prefix
+        let prefix = '';
+        if (arguments.length > 1) {
+            prefix += `[${index}] `;
+        }
+
+        str += `${prefix}${file}${line}`;
+
+        return str;
     }
 }
