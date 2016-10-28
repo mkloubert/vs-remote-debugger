@@ -400,9 +400,9 @@ export class ConsoleManager {
            output += ' favs                                        | Lists all favorites\n';
            output += ' friends                                     | Displays the list of friends\n';
            output += ' first                                       | Jumps to first item\n';
-           output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
+           output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
            output += ' last                                        | Jumps to last entry\n';
-           output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Goes to a specific entry (beginning at 1) \n';
+           output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Lists a number of entries\n';
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
            output += ' me                                          | Lists all network interfaces of that machine\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
