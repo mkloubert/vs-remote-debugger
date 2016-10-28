@@ -579,11 +579,11 @@ export class ConsoleManager {
 
                 if (existingFiles.length > 0) {
                     existingFiles.sort((x, y) => {
-                        if (x.stats.ctime.getTime() > y.stats.ctime.getTime()) {
+                        if (x.stats.birthtime.getTime() > y.stats.birthtime.getTime()) {
                             return -1;
                         }
 
-                        if (x.stats.ctime.getTime() < y.stats.ctime.getTime()) {
+                        if (x.stats.birthtime.getTime() < y.stats.birthtime.getTime()) {
                             return 1;
                         }
 
@@ -906,8 +906,8 @@ export class ConsoleManager {
 
             let friendNames: string[] = [];
             let parts = listOfFriends.split(' ');
-            for (let i = 0; i < listOfFriends.length; i++) {
-                let fn = listOfFriends[i].toLowerCase().trim();
+            for (let i = 0; i < parts.length; i++) {
+                let fn = parts[i].toLowerCase().trim();
                 if ('' != fn) {
                     friendNames.push(fn);
                 }
@@ -920,9 +920,10 @@ export class ConsoleManager {
                 friends = [];
                 for (let i = 0; i < friendNames.length; i++) {
                     let fn = friendNames[i];
+
                     for (let j = 0; j < allFriends.length; j++) {
                         let f = allFriends[j];
-                        if (allFriends[j].name == fn) {
+                        if (f.name == fn) {
                             friends.push(f);
                         }
                     }
