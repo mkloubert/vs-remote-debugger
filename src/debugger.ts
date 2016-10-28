@@ -542,7 +542,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             port = opts.port;
         }
 
-        let maxMsgSize = vsrd_contracts.DEFAULT_MESSAGE_SIZE;
+        let maxMsgSize = vsrd_contracts.DEFAULT_MAX_MESSAGE_SIZE;
         if (opts.maxMessageSize) {
             maxMsgSize = opts.maxMessageSize;
         }

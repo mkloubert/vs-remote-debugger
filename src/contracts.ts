@@ -236,9 +236,9 @@ export interface RemoteDebuggerFavorite {
 }
 
 /**
- * The default size of a debugger message.
+ * The default maximum size of a debugger message.
  */
-export const DEFAULT_MESSAGE_SIZE = 16777215;
+export const DEFAULT_MAX_MESSAGE_SIZE = 16777215;
 
 /**
  * The default TCP port.
