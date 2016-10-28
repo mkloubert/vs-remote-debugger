@@ -406,7 +406,7 @@ export class ConsoleManager {
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
            output += ' me                                          | Lists all network interfaces of that machine\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
-           output += ' none                                        | Clears all favorites"\n';
+           output += ' none                                        | Clears all favorites\n';
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
            output += ' refresh                                     | Refreshes the view\n';
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
