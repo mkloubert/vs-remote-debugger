@@ -546,8 +546,9 @@ export class ConsoleManager {
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_load(result: ExecuteCommandResult, match: RegExpExecArray): void {
+    protected cmd_load(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
         let file = match[3].trim();
 
@@ -708,8 +709,9 @@ export class ConsoleManager {
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_save(result: ExecuteCommandResult, match: RegExpExecArray): void {
+    protected cmd_save(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let favorites = result.favorites();
         let file = match[3].trim();
 
@@ -1083,111 +1085,110 @@ export class ConsoleManager {
             };
         };
 
-        if ('+' == expr.toLowerCase().trim() ||
-            'next' == expr.toLowerCase().trim()) {
+        let trimmedExpr = expr.trim();
+        let lowerExpr = trimmedExpr.toLowerCase();
+
+        if ('+' == lowerExpr || 'next' == lowerExpr) {
             action = me.cmd_next;
         }
-        else if ('-' == expr.toLowerCase().trim() ||
-                 'prev' == expr.toLowerCase().trim()) {
+        else if ('-' == lowerExpr || 'prev' == lowerExpr) {
             action = me.cmd_prev;
         }
-        else if ('all' == expr.toLowerCase().trim()) {
+        else if ('all' == lowerExpr) {
             action = me.cmd_all;
         }
-        else if ('clear' == expr.toLowerCase().trim()) {
+        else if ('clear' == lowerExpr) {
             action = me.cmd_clear;
         }
-        else if ('continue' == expr.toLowerCase().trim()) {
+        else if ('continue' == lowerExpr) {
             action = me.cmd_continue;
         }
-        else if ('current' == expr.toLowerCase().trim()) {
+        else if ('current' == lowerExpr) {
             action = me.cmd_current;
         }
-        else if ('debug' == expr.toLowerCase().trim()) {
+        else if ('debug' == lowerExpr) {
             action = me.cmd_debug;
         }
-        else if ('favs' == expr.toLowerCase().trim()) {
+        else if ('favs' == lowerExpr) {
             action = me.cmd_favs;
         }
-        else if ('first' == expr.toLowerCase().trim()) {
+        else if ('first' == lowerExpr) {
             action = me.cmd_first;
         }
-        else if ('friends' == expr.toLowerCase().trim()) {
+        else if ('friends' == lowerExpr) {
             action = me.cmd_friends;
         }
-        else if ('help' == expr.toLowerCase().trim() ||
-                 '?' == expr.toLowerCase().trim()) {
+        else if ('help' == lowerExpr || '?' == lowerExpr) {
             action = me.cmd_help;
         }
-        else if ('last' == expr.toLowerCase().trim()) {
+        else if ('last' == lowerExpr) {
             action = me.cmd_last;
         }
-        else if ('nodebug' == expr.toLowerCase().trim()) {
+        else if ('nodebug' == lowerExpr) {
             action = me.cmd_nodebug;
         }
-        else if ('nofavs' == expr.toLowerCase().trim() ||
-                 'none' == expr.toLowerCase().trim()) {
+        else if ('nofavs' == lowerExpr || 'none' == lowerExpr) {
             action = me.cmd_none;
         }
-        else if ('pause' == expr.toLowerCase().trim()) {
+        else if ('pause' == lowerExpr) {
             action = me.cmd_pause;
         }
-        else if ('refresh' == expr.toLowerCase().trim()) {
+        else if ('refresh' == lowerExpr) {
             action = me.cmd_refresh;
         }
-        else if ('state' == expr.toLowerCase().trim()) {
+        else if ('state' == lowerExpr) {
             action = me.cmd_state;
         }
-        else if ('toggle' == expr.toLowerCase().trim()) {
+        else if ('toggle' == lowerExpr) {
             action = me.cmd_toggle;
         }
-        else if ('wait' == expr.toLowerCase().trim()) {
+        else if ('wait' == lowerExpr) {
             action = me.cmd_wait;
         }
-        else if (REGEX_CMD_ADD.test(expr.trim())) {
+        else if (REGEX_CMD_ADD.test(trimmedExpr)) {
             // add
             action = toRegexAction(me.cmd_add,
-                                   REGEX_CMD_ADD, expr.trim());
+                                   REGEX_CMD_ADD, trimmedExpr);
         }
-        else if (REGEX_CMD_GOTO.test(expr.trim())) {
+        else if (REGEX_CMD_GOTO.test(trimmedExpr)) {
             // goto
             action = toRegexAction(me.cmd_goto,
-                                   REGEX_CMD_GOTO, expr.trim());
+                                   REGEX_CMD_GOTO, trimmedExpr);
         }
-        else if (REGEX_CMD_LIST.test(expr.trim())) {
+        else if (REGEX_CMD_LIST.test(trimmedExpr)) {
             // list
             action = toRegexAction(me.cmd_list,
-                                   REGEX_CMD_LIST, expr.trim());
+                                   REGEX_CMD_LIST, trimmedExpr);
         }
-        else if (REGEX_CMD_LOAD.test(expr.trim())) {
+        else if (REGEX_CMD_LOAD.test(trimmedExpr)) {
             // load
             action = toRegexAction(me.cmd_load,
-                                   REGEX_CMD_LOAD, expr.trim());
+                                   REGEX_CMD_LOAD, trimmedExpr);
         }
-        else if (REGEX_CMD_SAVE.test(expr.trim())) {
+        else if (REGEX_CMD_SAVE.test(trimmedExpr)) {
             // save
             action = toRegexAction(me.cmd_save,
-                                   REGEX_CMD_SAVE, expr.trim());
+                                   REGEX_CMD_SAVE, trimmedExpr);
         }
-        else if (REGEX_CMD_SEND.test(expr.trim())) {
+        else if (REGEX_CMD_SEND.test(trimmedExpr)) {
             // send
             action = toRegexAction(me.cmd_send,
-                                   REGEX_CMD_SEND, expr.trim());
+                                   REGEX_CMD_SEND, trimmedExpr);
         }
-        else if (REGEX_CMD_SET.test(expr.trim())) {
+        else if (REGEX_CMD_SET.test(trimmedExpr)) {
             // set
             action = toRegexAction(me.cmd_set,
-                                   REGEX_CMD_SET, expr.trim());
+                                   REGEX_CMD_SET, trimmedExpr);
         }
-        else if (REGEX_CMD_SHARE.test(expr.trim())) {
+        else if (REGEX_CMD_SHARE.test(trimmedExpr)) {
             // share
             action = toRegexAction(me.cmd_share,
-                                   REGEX_CMD_SHARE, expr.trim());
+                                   REGEX_CMD_SHARE, trimmedExpr);
         }
-        else if (REGEX_CMD_UNSET.test(expr.trim())) {
+        else if (REGEX_CMD_UNSET.test(trimmedExpr)) {
             // unset
             action = toRegexAction(me.cmd_unset,
-                                   REGEX_CMD_UNSET, expr.trim());
+                                   REGEX_CMD_UNSET, trimmedExpr);
         }
 
         if (action) {
