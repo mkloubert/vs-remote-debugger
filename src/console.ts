@@ -26,7 +26,7 @@ import OS = require('os');
 import Path = require('path');
 import Net = require('net');
 
-const REGEX_CMD_ADD = /^(add)([\s]?)([0-9]*)$/i;
+const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
@@ -34,7 +34,8 @@ const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
-const REGEX_CMD_UNSET = /^(unset)([\s]*)([0-9]*)$/i;
+const REGEX_CMD_TEST = /^(test)([\s]?)(.*)$/i;  //TODO: test code
+const REGEX_CMD_UNSET = /^(unset)([\s]?)(.*)$/i;
 
 export interface ExecuteCommandResponseBody {
     /** The number of indexed child variables.
@@ -165,40 +166,66 @@ export class ConsoleManager {
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_add(result: ExecuteCommandResult, match: RegExpExecArray): void {
-        let index = result.currentIndex() + 1;
-        if ('' != match[3]) {
-            index = parseInt(match[3]);
-        }
-
+    protected cmd_add(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
         let favorites = result.favorites();
+        
+        let ranges = me.toNumberRanges(match[3]);
+        if (ranges.length < 1) {
+            if (result.currentEntry()) {
+                ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
+            }
+            else {
+                ranges = null;
 
-        let entry: vsrd_contracts.RemoteDebuggerEntry;
-        if (index <= entries.length) {
-            entry = entries[index - 1];
+                if (entries.length > 0) {
+                    result.body(`Please select valid indexes from 1 to ${entries.length}!`);
+                }
+                else {
+                    result.body('Please select an entry!');
+                }
+            }
         }
 
-        if (entry) {
-            let fav: vsrd_contracts.RemoteDebuggerFavorite = { 
-                index: index,
-                entry: entry,
-            };
+        if (null !== ranges) {
+            let addFavs: number[] = [];
 
-            let exists = false;
-            for (let i = 0; i < favorites.length; i++) {
-                if (favorites[i].index == index) {
-                    // do not add duplicates
+            for (let i = 0; i < ranges.length; i++) {
+                let r = ranges[i];
 
-                    exists = true;
-                    break;
+                for (let j = 0; j < entries.length; j++) {
+                    let index = j + 1;
+
+                    if (!r.isInRange(index)) {
+                        continue;
+                    }
+
+                    let e = entries[j];
+                    let exists = false;
+                    for (let i = 0; i < favorites.length; i++) {
+                        if (favorites[i].index == index) {
+                            // do not add duplicates
+
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!exists) {
+                        let fav: vsrd_contracts.RemoteDebuggerFavorite = { 
+                            index: index,
+                            entry: e,
+                        };
+
+                        favorites.push(fav);
+                        addFavs.push(fav.index);
+                    }
                 }
             }
 
-            if (!exists) {
-                favorites.push(fav);
-
+            if (addFavs.length > 0) {
                 favorites.sort((x, y) => {
                     if (x.index > y.index) {
                         return 1;
@@ -209,16 +236,11 @@ export class ConsoleManager {
 
                     return 0;
                 });
-            }
 
-            result.body(`Added ${fav.index} as favorite`);
-        }
-        else {
-            if (entries.length > 0) {
-                result.body(`Please select a valid index from 1 to ${entries.length}!`);
+                result.body(`The following ${addFavs.length} favorites were added: ${addFavs.sort().join(',')}`);
             }
             else {
-                result.body('Please select an entry!');
+                result.body('No favorites added!');
             }
         }
 
@@ -391,7 +413,7 @@ export class ConsoleManager {
            output += ' ?                                           | Shows that help screen\n';
            output += ' +                                           | Goes to next entry\n';
            output += ' -                                           | Goes to previous entry\n';
-           output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite\n';
+           output += ' add [$INDEXS]                               | Adds the current or specific entries as favorites\n';
            output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
            output += ' continue                                    | Continues debugging\n';
@@ -415,7 +437,8 @@ export class ConsoleManager {
            output += ' share [$FRIEND]*                            | Sends your favorites to one or more friend\n';
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
-           output += ' unset [$INDEX]                              | Removes the additional information that is stored in an entry\n';
+           output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
+           output += ' unset [$INDEXS]                             | Removes the additional information that is stored in one or more entry\n';
            output += ' wait                                        | Starts waiting for an entry\n';
             
         result.body('');
@@ -983,6 +1006,58 @@ export class ConsoleManager {
         result.sendResponse();
     }
 
+    //TODO: test code
+    protected cmd_test(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        result.sendResponse();
+    }
+
+    /**
+     * 'trim' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_trim(result: ExecuteCommandResult): void {
+        let entries = result.entries();
+        let favorites = result.favorites();
+
+        // find entries that are marked as favorites
+        let newEntries: vsrd_contracts.RemoteDebuggerEntry[] = [];
+        for (let i = 0; i < favorites.length; i++) {
+            let f = favorites[i];
+
+            for (let j = 0; j < entries.length; j++) {
+                let e = entries[j];
+                let index = j + 1;
+
+                if (index == f.index) {
+                    // is favorite
+                    newEntries.push(e);
+                    break;
+                }
+            }
+        }
+
+        // refresh favorite list
+        let newFavs: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+        for (let i = 0; i < newEntries.length; i++) {
+            let e = newEntries[i];
+            let index = i + 1;
+            
+            newFavs.push({
+                index: index,
+                entry: e,
+            });
+        }
+
+        result.entries(newEntries);
+        result.favorites(newFavs);
+
+        result.body('List trimmed.');
+        result.sendResponse();
+
+        result.gotoIndex(0);
+    }
+
     /**
      * 'toggle' command
      * 
@@ -1001,32 +1076,53 @@ export class ConsoleManager {
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_unset(result: ExecuteCommandResult, match: RegExpExecArray): void {
-        let index = result.currentIndex() + 1;
-        if ('' != match[3]) {
-            index = parseInt(match[3]);
-        }
-
+    protected cmd_unset(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
-        let favorites = result.favorites();
-
-        let entry: vsrd_contracts.RemoteDebuggerEntry;
-        if (index <= entries.length) {
-            entry = entries[index - 1];
-        }
-
-        if (entry) {
-            entry.n = null;
-
-            result.body(`Removed information from ${index}`);
-        }
-        else {
-            if (entries.length > 0) {
-                result.body(`Please select a valid index from 1 to ${entries.length}!`);
+        
+        let ranges = me.toNumberRanges(match[3]);
+        if (ranges.length < 1) {
+            if (result.currentEntry()) {
+                ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
             }
             else {
-                result.body('Please select an entry!');
+                ranges = null;
+
+                if (entries.length > 0) {
+                    result.body(`Please select valid indexes from 1 to ${entries.length}!`);
+                }
+                else {
+                    result.body('Please select an entry!');
+                }
+            }
+        }
+
+        if (null !== ranges) {
+            let unsetEntries: number[] = [];
+
+            for (let i = 0; i < ranges.length; i++) {
+                let r = ranges[i];
+
+                for (let j = 0; j < entries.length; j++) {
+                    let e = entries[j];
+                    let index = j + 1;
+
+                    if (r.isInRange(index)) {
+                        e.n = null;
+
+                        if (unsetEntries.indexOf(index) < 0) {
+                            unsetEntries.push(index);
+                        }
+                    }
+                }
+            }
+
+            if (unsetEntries.length > 0) {
+                result.body(`The following ${unsetEntries.length} entries were unset: ${unsetEntries.sort().join(',')}`);
+            }
+            else {
+                result.body('No entries unset!');
             }
         }
 
@@ -1132,6 +1228,9 @@ export class ConsoleManager {
         else if ('toggle' == lowerExpr) {
             action = this.cmd_toggle;
         }
+        else if ('trim' == lowerExpr) {
+            action = this.cmd_trim;
+        }
         else if ('wait' == lowerExpr) {
             action = this.cmd_wait;
         }
@@ -1174,6 +1273,11 @@ export class ConsoleManager {
             // share
             action = toRegexAction(this.cmd_share,
                                    REGEX_CMD_SHARE, trimmedExpr);
+        }
+        else if (REGEX_CMD_TEST.test(trimmedExpr)) {
+            // test
+            action = toRegexAction(this.cmd_test,
+                                   REGEX_CMD_TEST, trimmedExpr);
         }
         else if (REGEX_CMD_UNSET.test(trimmedExpr)) {
             // unset
@@ -1321,5 +1425,91 @@ export class ConsoleManager {
         str += `${prefix}${file}${line}${notes}${origin}`;
 
         return str;
+    }
+
+    /**
+     * Converts a string to a list of number ranges.
+     * 
+     * @param {String} [str] The input string.
+     * 
+     * @return {vsrd_contracts.NumberRange[]} The list of ranges.
+     */
+    protected toNumberRanges(str?: string): vsrd_contracts.NumberRange[] {
+        let ranges: vsrd_contracts.NumberRange[] = [];
+        
+        if (str) {
+            str = ('' + str).toLowerCase().trim();
+        }
+
+        if (str) {
+            const REGEX = /^([\d]*)([\s]*)([\-]?)([\s]*)([\d]*)$/i;
+
+            let parts = str.split(',');
+            for (let i = 0; i < parts.length; i++) {
+                let p = parts[i].trim();
+                if (!p || !REGEX.test(p)) {
+                    continue;
+                }
+
+                let m = REGEX.exec(p);
+
+                let newRange: vsrd_contracts.NumberRange = {
+                    isInRange: function(v) {
+                        let isStartSet = undefined !== this.start;
+                        let isEndSet = undefined !== this.end;
+
+                        if (!isStartSet && !isEndSet) {
+                            return true;
+                        }
+
+                        if (undefined !== v) {
+                            if (!isStartSet) {
+                                return v <= this.end;
+                            }
+
+                            if (!isEndSet) {
+                                return v >= this.start;
+                            }
+                            
+                            return v >= this.start &&
+                                   v <= this.end;    
+                        }
+
+                        return false;
+                    }
+                };
+
+                if (m[1]) {
+                    newRange.start = parseInt(m[1]);
+                }
+                if (m[5]) {
+                    newRange.end = parseInt(m[5]);
+                }
+
+                // no separator?
+                if (!m[3]) {
+                    if (undefined !== newRange.start) {
+                        newRange.end = newRange.start;
+                    }    
+                    else if (undefined !== newRange.end) {
+                        newRange.start = newRange.end;
+                    }
+                }
+
+                if (undefined !== newRange.start &&
+                    undefined !== newRange.end) {
+
+                    if (newRange.start > newRange.end) {
+                        let temp = newRange.start;
+                        newRange.start = newRange.end;
+                        newRange.end = temp;
+                    }
+                }
+
+                ranges.push(newRange);
+            }
+        }
+
+        return ranges;
     }
 }

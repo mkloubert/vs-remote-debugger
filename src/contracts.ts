@@ -56,6 +56,26 @@ export interface Friend {
 }
 
 /**
+ * Stores a range of numbers.
+ */
+export interface NumberRange {
+    /**
+     * The end.
+     */
+    end?: number;
+
+    /**
+     * Checks if a value is in range or not.
+     */
+    isInRange(val?: number): boolean;
+
+    /**
+     * The start.
+     */
+    start?: number;
+}
+
+/**
  * Describes a debugger entry.
  */
 export interface RemoteDebuggerEntry {
