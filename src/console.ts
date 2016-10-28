@@ -214,6 +214,28 @@ export class ConsoleManager {
     }
 
     /**
+     * 'all' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_all(result: ExecuteCommandResult): void {
+        let entries = result.entries();
+        
+        let favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+        for (let i = 0; i < entries.length; i++) {
+            favorites.push({
+                entry: entries[i],
+                index: i + 1,
+            });
+        }
+
+        result.favorites(favorites);
+
+        result.body(`All ${favorites.length} entries were added as favorites`);
+        result.sendResponse();
+    }
+
+    /**
      * 'clear' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -339,7 +361,10 @@ export class ConsoleManager {
         let output = ' Command                                     | Description\n';
            output += '---------------------------------------------|-----------------\n';
            output += ' ?                                           | Shows that help screen\n';
+           output += ' +                                           | Goes to next entry\n';
+           output += ' -                                           | Goes to next entry\n';
            output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite\n';
+           output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
            output += ' continue                                    | Continues debugging\n';
            output += ' current                                     | Displays current index\n';
@@ -347,12 +372,11 @@ export class ConsoleManager {
            output += ' favs                                        | Lists all favorites\n';
            output += ' first                                       | Jumps to first item\n';
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1) \n';
-           output += ' help                                        | Shows that help screen\n';
            output += ' last                                        | Jumps to last entry\n';
            output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Goes to a specific entry (beginning at 1) \n';
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
-           output += ' nofavs                                      | Clears all favorites"\n';
+           output += ' none                                        | Clears all favorites"\n';
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
            output += ' refresh                                     | Refreshes the view\n';
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';  // X
@@ -534,6 +558,20 @@ export class ConsoleManager {
     }
 
     /**
+     * 'next' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_next(result: ExecuteCommandResult): void {
+        let newIndex = result.currentIndex() + 1;
+        
+        result.body(`New index: ${newIndex + 1}`);
+        result.sendResponse();
+
+        result.gotoIndex(newIndex);
+    }
+
+    /**
      * 'nodebug' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -546,11 +584,11 @@ export class ConsoleManager {
     }
 
     /**
-     * 'nofavs' command
+     * 'none' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
-    protected cmd_nofavs(result: ExecuteCommandResult): void {
+    protected cmd_none(result: ExecuteCommandResult): void {
         result.favorites([]);
         
         result.body('Favorites cleared');
@@ -567,6 +605,20 @@ export class ConsoleManager {
 
         result.body('Paused');
         result.sendResponse();
+    }
+
+    /**
+     * 'prev' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_prev(result: ExecuteCommandResult): void {
+        let newIndex = result.currentIndex() - 1;
+        
+        result.body(`New index: ${newIndex + 1}`);
+        result.sendResponse();
+
+        result.gotoIndex(newIndex);
     }
 
     /**
@@ -683,7 +735,7 @@ export class ConsoleManager {
             }
         }
         else {
-            result.body("No favorites available.");            
+            result.body("No favorites available!");            
             result.sendResponse();
         }
     }
@@ -840,7 +892,18 @@ export class ConsoleManager {
             };
         };
 
-        if ('clear' == expr.toLowerCase().trim()) {
+        if ('+' == expr.toLowerCase().trim() ||
+            'next' == expr.toLowerCase().trim()) {
+            action = me.cmd_next;
+        }
+        else if ('-' == expr.toLowerCase().trim() ||
+                 'prev' == expr.toLowerCase().trim()) {
+            action = me.cmd_prev;
+        }
+        else if ('all' == expr.toLowerCase().trim()) {
+            action = me.cmd_all;
+        }
+        else if ('clear' == expr.toLowerCase().trim()) {
             action = me.cmd_clear;
         }
         else if ('continue' == expr.toLowerCase().trim()) {
@@ -868,8 +931,9 @@ export class ConsoleManager {
         else if ('nodebug' == expr.toLowerCase().trim()) {
             action = me.cmd_nodebug;
         }
-        else if ('nofavs' == expr.toLowerCase().trim()) {
-            action = me.cmd_nofavs;
+        else if ('nofavs' == expr.toLowerCase().trim() ||
+                 'none' == expr.toLowerCase().trim()) {
+            action = me.cmd_none;
         }
         else if ('pause' == expr.toLowerCase().trim()) {
             action = me.cmd_pause;
