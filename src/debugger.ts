@@ -41,13 +41,17 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _bigStepForward: number;
     /**
-     * The current entry.
-     */
-    protected _currentEntry: number = -1;
-    /**
      * Stores the console manager.
      */
     protected _console: vsrd_console.ConsoleManager;
+    /**
+     * The underlying context.
+     */
+    protected _context: vsrd_contracts.DebuggerContext;
+    /**
+     * The current entry.
+     */
+    protected _currentEntry: number = -1;
     /**
      * List of friends.
      */
@@ -102,7 +106,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected createConsoleManager(args: vsrd_contracts.LaunchRequestArguments): vsrd_console.ConsoleManager {
         let me = this;
         
-        let mgr = new vsrd_console.ConsoleManager(this);
+        let mgr = new vsrd_console.ConsoleManager(this._context);
 
         return mgr;
     }
@@ -378,6 +382,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         // this.log('launchRequest');
         
         let me = this;
+
+        this._context = {
+            friends: () => me._friends,
+            session: me,
+        };
 
         me._sourceRoot = args.localSourceRoot;
         me._console = me.createConsoleManager(args);

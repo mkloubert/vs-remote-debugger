@@ -22,6 +22,7 @@ import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import * as vsrd_contracts from './contracts';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
+import OS = require('os');
 import Path = require('path');
 import Net = require('net');
 
@@ -146,17 +147,17 @@ export interface ExecuteCommandResult {
  */
 export class ConsoleManager {
     /**
-     * Stores the underlying session.
+     * The underlying debugger context.
      */
-    protected _session: vscode_dbg_adapter.DebugSession;
+    protected _context: vsrd_contracts.DebuggerContext;
 
     /**
      * Initializes a new instance of that class.
      * 
      * @param {vscode_dbg_adapter.DebugSession} session The underlying session.
      */
-    constructor(session: vscode_dbg_adapter.DebugSession) {
-        this._session = session;
+    constructor(session: vsrd_contracts.DebuggerContext) {
+        this._context = session;
     }
 
     /**
@@ -403,6 +404,7 @@ export class ConsoleManager {
            output += ' last                                        | Jumps to last entry\n';
            output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Goes to a specific entry (beginning at 1) \n';
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
+           output += ' me                                          | Lists all network interfaces of that machine\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
            output += ' none                                        | Clears all favorites"\n';
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
@@ -572,6 +574,45 @@ export class ConsoleManager {
         catch (e) {
             showError(e);
         }
+    }
+
+    /**
+     * 'me' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_me(result: ExecuteCommandResult): void {
+        let foundInterfaces: OS.NetworkInterfaceInfo[] = [];
+        
+        let netInterfaces = OS.networkInterfaces();
+        for (let i in netInterfaces) {
+            let infos = netInterfaces[i];
+            infos.forEach((netInterface) => {
+                if (netInterface.internal) {
+                    return;
+                }
+
+                foundInterfaces.push(netInterface);
+            });
+        }
+
+        if (foundInterfaces.length > 0) {
+            let output = '';
+            
+            for (let i = 0; i < foundInterfaces.length; i++) {
+                let ni = foundInterfaces[i];
+
+                output += `[${i + 1}] (${ni.family}) ${ni.address} / ${ni.netmask} (${ni.mac})`;
+                output += "\n";
+            }
+
+            result.write(output);
+        }
+        else {
+            result.body('No network interfaces found!');
+        }
+
+        result.sendResponse();
     }
 
     /**
@@ -1012,8 +1053,6 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     public evaluateRequest(result: ExecuteCommandResult): void {
-        let session: any = this._session;
-
         let expr = result.args.expression;
         if (!expr) {
             expr = '';
@@ -1071,6 +1110,9 @@ export class ConsoleManager {
         }
         else if ('last' == lowerExpr) {
             action = this.cmd_last;
+        }
+        else if ('me' == lowerExpr) {
+            action = this.cmd_me;
         }
         else if ('nodebug' == lowerExpr) {
             action = this.cmd_nodebug;

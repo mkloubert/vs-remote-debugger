@@ -21,6 +21,21 @@
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 /**
+ * Describes a debugger context.
+ */
+export interface DebuggerContext {
+    /**
+     * Gets the list of friends.
+     */
+    friends(): Friend[];
+
+    /**
+     * Gets the underlying session.
+     */
+    session: any;
+}
+
+/**
  * A friend entry.
  */
 export interface Friend {
