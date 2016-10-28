@@ -40,6 +40,11 @@ export interface RemoteDebuggerEntry {
     f?: string;
 
     /**
+     * Notes
+     */
+    n?: string;
+
+    /**
      * The stacktrace.
      */
     s?: RemoteDebuggerStackFrame[];

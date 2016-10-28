@@ -32,7 +32,8 @@ const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
-
+const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
+const REGEX_CMD_UNSET = /^(unset)([\s]*)([0-9]*)$/i;
 
 export interface ExecuteCommandResponseBody {
     /** The number of indexed child variables.
@@ -68,6 +69,11 @@ export interface ExecuteCommandResult {
      * Gets or sets the body object of the underlying response.
      */
     body(newValue?: ExecuteCommandResponseBody | string): ExecuteCommandResponseBody;
+
+    /**
+     * Gets the current entry.
+     */
+    currentEntry(): vsrd_contracts.RemoteDebuggerEntry;
 
     /**
      * Gets or sets the index of the current entry.
@@ -323,7 +329,20 @@ export class ConsoleManager {
                     }
                 }
 
-                output += `[${fav.index}] ${file}${line}`;
+                let prefix = `[${fav.index + 1}] `;
+
+                output += `${prefix}${file}${line}`;
+
+                // additional information / notes
+                let notes = fav.entry.n;
+                if (notes) {
+                    output += '\n';
+                    for (let j = 0; j < prefix.length; j++) {
+                        output += ' ';
+                    }
+
+                    output += notes;
+                }
 
                 output += "\n";
             }
@@ -379,10 +398,12 @@ export class ConsoleManager {
            output += ' none                                        | Clears all favorites"\n';
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
            output += ' refresh                                     | Refreshes the view\n';
-           output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';  // X
-           output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';  // X
+           output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
+           output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
+           output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
+           output += ' unset [$INDEX]                              | Removes the additional information that is stored in an entry\n';
            output += ' wait                                        | Starts waiting for an entry\n';
             
         result.body('');
@@ -456,7 +477,20 @@ export class ConsoleManager {
                 }
             }
 
-            output += `[${index + 1}] ${file}${line}`;
+            let prefix = `[${index + 1}] `;
+
+            output += `${prefix}${file}${line}`;
+
+            // additional information / notes
+            let notes = entry.n;
+            if (notes) {
+                output += '\n';
+                for (let j = 0; j < prefix.length; j++) {
+                    output += ' ';
+                }
+
+                output += notes;
+            }
 
             output += "\n";
         }
@@ -828,6 +862,29 @@ export class ConsoleManager {
     }
 
     /**
+     * 'set' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     */
+    protected cmd_set(result: ExecuteCommandResult, match: RegExpExecArray): void {
+        let text = match[3].trim();
+
+        let index = result.currentIndex();
+        let entry = result.currentEntry();
+        if (entry) {
+            entry.n = text;
+
+            result.body(`Set information for ${index + 1}: ${text}`);
+        }
+        else {
+            result.body('Please select an entry!');
+        }
+
+        result.sendResponse();
+    }
+
+    /**
      * 'state' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -847,6 +904,43 @@ export class ConsoleManager {
         result.isPaused(toggledIsPaused);
 
         result.body(toggledIsPaused ? 'Paused' : 'Running');
+        result.sendResponse();
+    }
+
+    /**
+     * 'unset' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     */
+    protected cmd_unset(result: ExecuteCommandResult, match: RegExpExecArray): void {
+        let index = result.currentIndex() + 1;
+        if ('' != match[3]) {
+            index = parseInt(match[3]);
+        }
+
+        let entries = result.entries();
+        let favorites = result.favorites();
+
+        let entry: vsrd_contracts.RemoteDebuggerEntry;
+        if (index <= entries.length) {
+            entry = entries[index - 1];
+        }
+
+        if (entry) {
+            entry.n = null;
+
+            result.body(`Removed information from ${index}`);
+        }
+        else {
+            if (entries.length > 0) {
+                result.body(`Please select a valid index from 1 to ${entries.length}!`);
+            }
+            else {
+                result.body('Please select an entry!');
+            }
+        }
+
         result.sendResponse();
     }
 
@@ -979,6 +1073,16 @@ export class ConsoleManager {
             // send
             action = toRegexAction(me.cmd_send,
                                    REGEX_CMD_SEND, expr.trim());
+        }
+        else if (REGEX_CMD_SET.test(expr.trim())) {
+            // set
+            action = toRegexAction(me.cmd_set,
+                                   REGEX_CMD_SET, expr.trim());
+        }
+        else if (REGEX_CMD_UNSET.test(expr.trim())) {
+            // unset
+            action = toRegexAction(me.cmd_unset,
+                                   REGEX_CMD_UNSET, expr.trim());
         }
 
         if (action) {

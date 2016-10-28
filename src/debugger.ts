@@ -160,6 +160,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                     return r.body;
                 },
+                currentEntry: () => me.entry,
                 currentIndex: function(nv?) {
                     if (arguments.length > 0) {
                         me._currentEntry = nv;
