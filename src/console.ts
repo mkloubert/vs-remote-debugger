@@ -387,7 +387,7 @@ export class ConsoleManager {
      */
     protected cmd_help(result: ExecuteCommandResult): void {
         let output = ' Command                                     | Description\n';
-           output += '---------------------------------------------|-----------------\n';
+           output += '---------------------------------------------|-----------------------------------------------------------------------\n';
            output += ' ?                                           | Shows that help screen\n';
            output += ' +                                           | Goes to next entry\n';
            output += ' -                                           | Goes to previous entry\n';
