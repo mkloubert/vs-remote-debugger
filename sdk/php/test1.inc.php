@@ -4,6 +4,7 @@ defined('MJK_REMOTE_DBG_TEST') or die();
 
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
 $debugger->ScriptRoot = __DIR__;
+$debugger->MaxDepth = 16;
 $debugger->addHost("localhost", 23979);
 
 $debugger->ErrorHandler = function($type, $err, $eventData) {

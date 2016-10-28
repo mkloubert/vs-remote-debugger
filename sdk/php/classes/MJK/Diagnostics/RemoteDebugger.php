@@ -73,6 +73,10 @@ class RemoteDebugger {
      */
     public static $DefaultHost = '127.0.0.1';
     /**
+     * Default value for the maximum depth of a variable tree.
+     */
+    public static $DefaultMaxDepth = 32;
+    /**
      * Stores the TCP port of the remote debugger host.
      *
      * @var int
@@ -96,6 +100,13 @@ class RemoteDebugger {
      * @var callable
      */
     public $ErrorHandler;
+    /**
+     * A value that defines how deep a tree of
+     * variables can be to prevent stack overflows.
+     * 
+     * @var int|callable
+     */
+    public $MaxDepth;
     /**
      * The path of the script root or the callable that provides it.
      *
@@ -270,6 +281,16 @@ class RemoteDebugger {
                 'time' => $now,
             ];
 
+            // max depth of a variable tree
+            $maxSteps = \trim($this->unwrapValue($this->MaxDepth, $eventData));
+            if (empty($maxSteps)) {
+                $maxSteps = \trim($this->unwrapValue(static::$DefaultMaxDepth, $eventData));
+            }
+            if (empty($maxSteps)) {
+                $maxSteps = 1;
+            }
+            $maxSteps = (int)$maxSteps;
+
             try {
                 $nextVarRef = 1;
 
@@ -280,7 +301,8 @@ class RemoteDebugger {
                     $debuggerVars = [];
                     foreach ($vars as $vn => $vv) {
                         $debuggerVars[] = $this->toVariableEntry('$' . $vn, $vv,
-                                                                 0, $nextVarRef);
+                                                                 0, $nextVarRef,
+                                                                 0, $maxSteps);
                     }
                 }
 
@@ -468,7 +490,8 @@ class RemoteDebugger {
                             }
 
                             $stackFrame['s'][0]['v'][] = $this->toVariableEntry($argName, $vv,
-                                                                                0, $nextVarRef);
+                                                                                0, $nextVarRef,
+                                                                                0, $maxSteps);
                         }
                     }
 
