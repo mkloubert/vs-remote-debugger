@@ -568,7 +568,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
     /** @inheritdoc */
     protected setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): void {
-        this.log('setBreakPointsRequest: ' + args.breakpoints.length);
+        // this.log('setBreakPointsRequest: ' + args.breakpoints.length);
     }
 
     /** @inheritdoc */

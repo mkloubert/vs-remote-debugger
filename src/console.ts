@@ -25,12 +25,12 @@ import FS = require('fs');
 import Path = require('path');
 import Net = require('net');
 
-
 const REGEX_CMD_ADD = /^(add)([\s]?)([0-9]*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
+const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
 const REGEX_CMD_UNSET = /^(unset)([\s]*)([0-9]*)$/i;
@@ -322,7 +322,7 @@ export class ConsoleManager {
                     }
                 }
 
-                let prefix = `[${fav.index + 1}] `;
+                let prefix = `[${fav.index}] `;
 
                 output += `${prefix}${file}${line}`;
 
@@ -413,7 +413,7 @@ export class ConsoleManager {
            output += '---------------------------------------------|-----------------\n';
            output += ' ?                                           | Shows that help screen\n';
            output += ' +                                           | Goes to next entry\n';
-           output += ' -                                           | Goes to next entry\n';
+           output += ' -                                           | Goes to previous entry\n';
            output += ' add [$INDEX]                                | Adds the current or a specific entry as favorite\n';
            output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
@@ -434,6 +434,7 @@ export class ConsoleManager {
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
            output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
            output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
+           output += ' share [$FRIEND]*                            | Sends your favorites to one or more friend\n';
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
            output += ' unset [$INDEX]                              | Removes the additional information that is stored in an entry\n';
@@ -467,7 +468,7 @@ export class ConsoleManager {
      */
     protected cmd_list(result: ExecuteCommandResult, match: RegExpExecArray): void {
         let entries = result.entries();
-        
+
         let itemsToSkip: number = 0;
         if ('' != match[3]) {
             itemsToSkip = parseInt(match[3]);
@@ -812,8 +813,9 @@ export class ConsoleManager {
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying manager.
      */
-    protected cmd_send(result: ExecuteCommandResult, match: RegExpExecArray): void {
+    protected cmd_send(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let favs = result.favorites();
         
         let host = match[3].toLowerCase().trim();
@@ -826,19 +828,15 @@ export class ConsoleManager {
         let output = '';
 
         if (favs && favs.length > 0) {
-            result.sendResponse();
-
-            let showError = (err) => {
-                result.writeLine('[ERROR :: send()]: ' + err + '\n');
-            };
-
             let finished = () => {
                 result.writeLine(`Send favorites to '${host}:${port}'`);
+
+                result.sendResponse();
             };
 
             let i = -1;
             let sendNext: () => void;
-            sendNext = () => {
+            sendNext = function() {
                 ++i;
                 
                 if (!favs) {
@@ -850,39 +848,14 @@ export class ConsoleManager {
                     finished();
                     return;
                 }
-                
-                try {
-                    let json = new Buffer(JSON.stringify(favs[i].entry),
-                                            'utf8');
 
-                    let dataLength = Buffer.alloc(4);
-                    dataLength.writeUInt32LE(json.length, 0);
-
-                    let client = new Net.Socket();
-
-                    client.on('error', function(err) {
-                        showError(err);
-
-                        sendNext();
-                    });
-
-                    client.connect(port, host, () => {
-                        try {
-                            client.write(dataLength);
-                            client.write(json);
-
-                            client.destroy();
-                        }
-                        catch (e) {
-                            showError(e);
-                        }
-
-                        sendNext();
-                    });
-                }
-                catch (e) {
-                    showError(e);
-                }
+                me.sendEntryTo(favs[i].entry, host, port)
+                  .then((e) => {
+                            sendNext();
+                        },
+                        () => {
+                            sendNext();
+                        });
             };
 
             // start sending
@@ -915,6 +888,97 @@ export class ConsoleManager {
         }
 
         result.sendResponse();
+    }
+
+    /**
+     * 'share' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_share(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let favs = result.favorites();
+        if (favs.length > 0) {
+            let listOfFriends = match[3].trim();
+
+            let friendNames: string[] = [];
+            let parts = listOfFriends.split(' ');
+            for (let i = 0; i < listOfFriends.length; i++) {
+                let fn = listOfFriends[i].toLowerCase().trim();
+                if ('' != fn) {
+                    friendNames.push(fn);
+                }
+            }
+
+            let allFriends = result.friends();
+
+            let friends: vsrd_contracts.Friend[];
+            if (friendNames.length > 0) {
+                friends = [];
+                for (let i = 0; i < friendNames.length; i++) {
+                    let fn = friendNames[i];
+                    for (let j = 0; j < allFriends.length; j++) {
+                        let f = allFriends[j];
+                        if (allFriends[j].name == fn) {
+                            friends.push(f);
+                        }
+                    }
+                }
+            }
+            else {
+                friends = allFriends;
+            }
+
+            if (friends.length > 0) {
+                let sendToFriend = (f: vsrd_contracts.Friend) => {
+                    let finished = () => {
+                        result.writeLine(`Send favorites to '${f.name}' (${f.address}:${f.port})`);
+                    };
+                    
+                    let i = -1;
+                    let sendNext: () => void;
+                    sendNext = function() {
+                        ++i;
+                        
+                        if (!favs) {
+                            finished();
+                            return;
+                        }
+
+                        if (i >= favs.length) {
+                            finished();
+                            return;
+                        }
+
+                        me.sendEntryTo(favs[i].entry, f.address, f.port)
+                          .then((e) => {
+                                    sendNext();
+                                },
+                                () => {
+                                    sendNext();
+                                });
+                    };
+
+                    // start sending
+                    sendNext();
+                };
+
+                for (let i = 0; i < friends.length; i++) {
+                    sendToFriend(friends[i]);  
+                }
+
+                result.sendResponse();
+            }
+            else {
+                result.body('No friends defined or found!');
+                result.sendResponse();
+            }
+        }
+        else {
+            result.body('Nothing to send!');
+            result.sendResponse();
+        }
     }
 
     /**
@@ -1007,14 +1071,14 @@ export class ConsoleManager {
 
         let action: (result: ExecuteCommandResult) => void;
         
-        let toRegexAction: (actionToWrap: (result: ExecuteCommandResult, match: RegExpExecArray) => void,
+        let toRegexAction: (actionToWrap: (result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager) => void,
                             regex: RegExp, expr: string) => (result: ExecuteCommandResult) => void;
         toRegexAction = (actionToWrap, regex, expr) => {
             let match = regex.exec(expr);
 
             return (r) => {
                 if (actionToWrap) {
-                    actionToWrap(r, match);
+                    actionToWrap(r, match, me);
                 }
             };
         };
@@ -1115,6 +1179,11 @@ export class ConsoleManager {
             action = toRegexAction(me.cmd_set,
                                    REGEX_CMD_SET, expr.trim());
         }
+        else if (REGEX_CMD_SHARE.test(expr.trim())) {
+            // share
+            action = toRegexAction(me.cmd_share,
+                                   REGEX_CMD_SHARE, expr.trim());
+        }
         else if (REGEX_CMD_UNSET.test(expr.trim())) {
             // unset
             action = toRegexAction(me.cmd_unset,
@@ -1127,5 +1196,53 @@ export class ConsoleManager {
 
             action(result);
         }
+    }
+
+    /**
+     * Sends a debugger entry to another machine.
+     * 
+     * @param {vsrd_contracts.RemoteDebuggerEntry} entry The entry to send.
+     * @param {string} host The host address.
+     * @param {number} The TCP port.
+     * 
+     * @return {Promise<T>} The promise.
+     */
+    protected sendEntryTo(entry: vsrd_contracts.RemoteDebuggerEntry,
+                          host: string, port: number): Promise<vsrd_contracts.RemoteDebuggerEntry> {
+
+        return new Promise((resolve, reject) => {
+            let showError = (err) => {
+                reject({
+                    'entry': entry,
+                    'error': err,
+                });
+            };
+
+            let json = new Buffer(JSON.stringify(entry),
+                                  'utf8');
+
+            let dataLength = Buffer.alloc(4);
+            dataLength.writeUInt32LE(json.length, 0);
+
+            let client = new Net.Socket();
+
+            client.on('error', function(err) {
+                showError(err);
+            });
+
+            client.connect(port, host, () => {
+                try {
+                    client.write(dataLength);
+                    client.write(json);
+
+                    client.destroy();
+
+                    resolve(entry);
+                }
+                catch (e) {
+                    showError(e);
+                }
+            });
+        });
     }
 }
