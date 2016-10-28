@@ -246,7 +246,7 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_current(result: ExecuteCommandResult): void {
-        result.body('Current index: ' + result.currentIndex());
+        result.body(`Current index: ${result.currentIndex() + 1}`);
 
         result.sendResponse();
     }
@@ -811,7 +811,6 @@ export class ConsoleManager {
 
         result.gotoIndex(newIndex);
     }
-
 
     /**
      * Executes a command.
