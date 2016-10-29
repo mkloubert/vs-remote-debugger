@@ -27,6 +27,7 @@ import Path = require('path');
 import Net = require('net');
 
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
+const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
 const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
 const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
@@ -341,6 +342,84 @@ export class ConsoleManager {
     }
 
     /**
+     * 'exec' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_exec(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        try {
+            let cmd = match[3].toLowerCase().trim();
+            
+            let args = match[5];
+            if (!args) {
+                args = '';
+            }
+
+            let executedCommands = 0;
+            let plugins = me._context.plugins();
+            for (let i = 0; i < plugins.length; i++) {
+                let p = plugins[i];
+                if (p.commands && p.execute) {
+                    let execCtx: vsrd_contracts.DebuggerPluginExecutionContext;
+                    
+                    let supportedCommands = p.commands();
+                    if (supportedCommands) {
+                        for (let j = 0; j < supportedCommands.length; j++) {
+                            let originalName = supportedCommands[j];
+                            if (!originalName) {
+                                continue;
+                            }
+
+                            let name = originalName.toLowerCase().trim();
+                            if (name == cmd) {
+                                execCtx = {
+                                    arguments: args,
+                                    name: originalName,
+
+                                    write: function(msg) {
+                                        result.write(msg);
+                                        return this;
+                                    },
+
+                                    writeLine: function(msg) {
+                                        if (msg) {
+                                            this.write('' + msg);
+                                        }
+
+                                        return this.write('\n');
+                                    }
+                                };
+
+                                break;
+                            }
+                        }
+                    }
+
+                    if (execCtx) {
+                        ++executedCommands;
+
+                        let r = p.execute(execCtx);
+                        if (r) {
+                            result.body(r);
+                        }
+                    }
+                }
+            }
+
+            if (executedCommands < 1) {
+                result.body(`Command '${cmd}' was not found!`);
+            }
+        }
+        catch (e) {
+            result.body('Execution error: ' + e);
+        }
+
+        result.sendResponse();
+    }
+
+    /**
      * 'favs' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -553,6 +632,7 @@ export class ConsoleManager {
            output += ' continue                                    | Continues debugging\n';
            output += ' current                                     | Displays current index\n';
            output += ' debug                                       | Runs debugger itself in "debug mode"\n'; 
+           output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
            output += ' favs                                        | Lists all favorites\n';
            output += ' friends                                     | Displays the list of friends\n';
            output += ' first                                       | Jumps to first item\n';
@@ -1539,6 +1619,7 @@ export class ConsoleManager {
             };
         };
 
+        let leftTrimmerExpr = expr.replace(/^\s*/, '');
         let trimmedExpr = expr.trim();
         let lowerExpr = trimmedExpr.toLowerCase();
 
@@ -1612,6 +1693,11 @@ export class ConsoleManager {
             // add
             action = toRegexAction(this.cmd_add,
                                    REGEX_CMD_ADD, trimmedExpr);
+        }
+        else if (REGEX_CMD_EXEC.test(leftTrimmerExpr)) {
+            // exec
+            action = toRegexAction(this.cmd_exec,
+                                   REGEX_CMD_EXEC, leftTrimmerExpr);
         }
         else if (REGEX_CMD_FIND.test(trimmedExpr)) {
             // find

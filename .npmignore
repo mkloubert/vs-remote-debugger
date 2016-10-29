@@ -1,5 +1,6 @@
 .vscode/**
 .vscode-test/**
+out/src/plugins/test.*
 out/test/**
 test/**
 img/**

@@ -50,6 +50,20 @@ export interface DebuggerContext {
  */
 export interface DebuggerPlugin {
     /**
+     * Returns the list of names of supported commands.
+     */
+    commands?: () => string[];
+
+    /**
+     * Executes a command.
+     * 
+     * @param {DebuggerPluginExecutionContext} ctx The execution context.
+     * 
+     * @return {any} The result of the command that should be displayed in the debug console.
+     */
+    execute?: (ctx: DebuggerPluginExecutionContext) => any;
+
+    /**
      * Restores a transformed / encoded / crypted message.
      * 
      * @param {Buffer} [transformed] The transformed data.
@@ -66,6 +80,39 @@ export interface DebuggerPlugin {
      * @param {Buffer} The transformed data.
      */
     transformMessage?: (msg: Buffer) => Buffer;
+}
+
+/**
+ * Describes a context for a plugin execution.
+ */
+export interface DebuggerPluginExecutionContext {
+    /**
+     * The arguments from the debug console.
+     */
+    arguments: string;
+
+    /**
+     * The name of the underlying plugin.
+     */
+    name: string;
+
+    /**
+     * Writes something to the output.
+     * 
+     * @param {any} msg The data to write.
+     * 
+     * @chainable
+     */
+    write: (msg: any) => DebuggerPluginExecutionContext;
+    
+    /**
+     * Writes something to the output and adds a "new line".
+     * 
+     * @param {any} [msg] The data to write.
+     * 
+     * @chainable
+     */
+    writeLine: (msg?: any) => DebuggerPluginExecutionContext;
 }
 
 /**
