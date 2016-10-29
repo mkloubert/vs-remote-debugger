@@ -53,6 +53,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _currentEntry: number = -1;
     /**
+     * List of all loaded entries.
+     */
+    protected _entries: vsrd_contracts.RemoteDebuggerEntry[] = [];
+    /**
+     * Stores the list of favorites.
+     */
+    protected _favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+    /**
      * List of friends.
      */
     protected _friends: vsrd_contracts.Friend[];
@@ -65,13 +73,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _isPaused = false;
     /**
-     * List of all loaded entries.
+     * List of all loaded plugins.
      */
-    protected _entries: vsrd_contracts.RemoteDebuggerEntry[] = [];
-    /**
-     * Stores the list of favorites.
-     */
-    protected _favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+    protected _plugins: vsrd_contracts.DebuggerPlugin[];
     /**
      * The current server.
      */
@@ -392,86 +396,15 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         this._context = {
             friends: () => me._friends,
             nick: () => nickname,
+            plugins: () => me._plugins,
             session: me,
         };
 
         me._sourceRoot = args.localSourceRoot;
         me._console = me.createConsoleManager(args);
 
-        // load friends
-        me._friends = [];
-
-        let findDefaultName = () => {
-            let defName: string;
-            let i = 0;
-            let nameExists: boolean;
-            do {
-                nameExists = false;
-
-                defName = '#' + ++i;
-                
-                for (let j = 0; j < me._friends.length; j++) {
-                    if (me._friends[j].name == defName) {
-                        nameExists = true;
-                        break;
-                    }
-                }    
-            }
-            while (nameExists);
-
-            return defName;
-        };
-
-        if (args.friends) {
-            for (let i = 0; i < args.friends.length; i++) {
-                let friend = args.friends[i];
-                if (friend) {
-                    friend = ('' + friend).trim();
-                }
-
-                if (!friend) {
-                    continue;
-                }
-
-                let newEntry: vsrd_contracts.Friend = {
-                    address: friend,
-                    port: vsrd_contracts.DEFAULT_PORT,
-                };
-
-                // friend name
-                let addrNameSeparator = newEntry.address.indexOf('=');
-                if (addrNameSeparator > -1) {
-                    newEntry.name = newEntry.address.substr(addrNameSeparator + 1).trim();
-
-                    newEntry.address = newEntry.address.substr(0, addrNameSeparator).trim();
-                }
-
-                // TCP port
-                let addrPortSeparator = newEntry.address.indexOf(':');
-                if (addrPortSeparator > -1) {
-                    let fp = newEntry.address.substr(addrPortSeparator + 1).trim();
-                    if (fp) {
-                        newEntry.port = parseInt(fp);
-                    }
-
-                    newEntry.address = newEntry.address.substr(0, addrPortSeparator).trim();
-                }
-
-                if (newEntry.address && !isNaN(newEntry.port)) {
-                    // normalize and add entry
-                    // if data is valid
-                    
-                    newEntry.address = newEntry.address.toLowerCase().trim();
-                    
-                    if (!newEntry.name) {
-                        newEntry.name = findDefaultName();
-                    }
-                    newEntry.name = newEntry.name.toLowerCase().trim();
-
-                    me._friends.push(newEntry);
-                }
-            }
-        }
+        me.reloadPlugins(args.plugins);
+        me.reloadFriendList(args.friends);
 
         this.startServer({
             apps: args.apps,
@@ -534,6 +467,155 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /** @inheritdoc */
     protected pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments): void {
         // this.log('pauseRequest');
+    }
+
+    /**
+     * Reloads the list of friends.
+     * 
+     * @param {string[]} [friends] The entries with friend information.
+     */
+    protected reloadFriendList(friends?: string[]) {
+        let me = this;
+
+        me._friends = [];
+
+        if (!friends) {
+            return;
+        }
+
+        let findDefaultName = () => {
+            let defName: string;
+            let i = 0;
+            let nameExists: boolean;
+            do {
+                nameExists = false;
+
+                defName = '#' + ++i;
+                
+                for (let j = 0; j < me._friends.length; j++) {
+                    if (me._friends[j].name == defName) {
+                        nameExists = true;
+                        break;
+                    }
+                }    
+            }
+            while (nameExists);
+
+            return defName;
+        };
+
+        for (let i = 0; i < friends.length; i++) {
+            let friend = friends[i];
+            if (friend) {
+                friend = ('' + friend).trim();
+            }
+
+            if (!friend) {
+                continue;
+            }
+
+            let newEntry: vsrd_contracts.Friend = {
+                address: friend,
+                port: vsrd_contracts.DEFAULT_PORT,
+            };
+
+            // friend name
+            let addrNameSeparator = newEntry.address.indexOf('=');
+            if (addrNameSeparator > -1) {
+                newEntry.name = newEntry.address.substr(addrNameSeparator + 1).trim();
+
+                newEntry.address = newEntry.address.substr(0, addrNameSeparator).trim();
+            }
+
+            // TCP port
+            let addrPortSeparator = newEntry.address.indexOf(':');
+            if (addrPortSeparator > -1) {
+                let fp = newEntry.address.substr(addrPortSeparator + 1).trim();
+                if (fp) {
+                    newEntry.port = parseInt(fp);
+                }
+
+                newEntry.address = newEntry.address.substr(0, addrPortSeparator).trim();
+            }
+
+            if (newEntry.address && !isNaN(newEntry.port)) {
+                // normalize and add entry
+                // if data is valid
+                
+                newEntry.address = newEntry.address.toLowerCase().trim();
+                
+                if (!newEntry.name) {
+                    newEntry.name = findDefaultName();
+                }
+                newEntry.name = newEntry.name.toLowerCase().trim();
+
+                me._friends.push(newEntry);
+            }
+        }
+    }
+
+    /**
+     * Reloads the list of plugins.
+     * 
+     * @param {string[]} [plugins] The names of the plugins.
+     */
+    protected reloadPlugins(plugins?: string[]) {
+        let me = this;
+
+        me._plugins = [];
+
+        let loadedPlugins: string[] = [];
+        let finish = () => {
+            if (loadedPlugins.length > 0) {
+                me.log(`Loaded plugins: "${loadedPlugins.join('", "')}"`);
+            }
+            else {
+                me.log('No plugins loaded.');
+            }
+        };
+        
+        if (!plugins) {
+            finish();
+            return;
+        }
+
+        let currentDir = __dirname;
+
+        for (let i = 0; i < plugins.length; i++) {
+            let pluginName = plugins[i];
+            if (pluginName) {
+                pluginName = ('' + pluginName).trim();
+            }
+
+            if (!pluginName) {
+                continue;
+            }
+
+            let plugin: vsrd_contracts.DebuggerPlugin;
+
+            let pluginFile = Path.join(currentDir, 'plugins', `${pluginName}.js`);
+            if (FS.existsSync(pluginFile)) {
+                let stats = FS.lstatSync(pluginFile);
+
+                if (stats.isFile()) {
+                    let pluginModule: vsrd_contracts.DebuggerPluginModule = require(pluginFile);
+                    if (pluginModule) {
+                        if (pluginModule.create) {
+                            plugin = pluginModule.create(me._context);
+                        }
+                    }
+                }
+            }
+
+            if (!plugin) {
+                throw `Could not load plugin '${pluginName}'!`;
+            }
+
+            me._plugins.push(plugin);
+            loadedPlugins.push(pluginName);
+        }
+
+        finish();
     }
 
     /** @inheritdoc */
@@ -756,7 +838,17 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             return;
                         }
 
-                        let json = buff.toString('utf8');
+                        // decrypt data
+                        let decryptedBuffer = buff;
+                        for (let i = 0; i < me._plugins.length; i++) {
+                            let plugin = me._plugins[i];
+
+                            if (plugin.restoreMessage) {
+                                decryptedBuffer = plugin.restoreMessage(decryptedBuffer);
+                            }
+                        }
+
+                        let json = decryptedBuffer.toString('utf8');
 
                         let entry: vsrd_contracts.RemoteDebuggerEntry = JSON.parse(json);
                         if (!entry) {

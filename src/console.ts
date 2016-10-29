@@ -1227,7 +1227,7 @@ export class ConsoleManager {
                     return;
                 }
 
-                me.sendEntryTo(favs[i].entry, host, port)
+                me.sendEntryTo(favs[i].entry, host, port, me)
                   .then((e) => {
                             sendNext();
                         },
@@ -1330,7 +1330,7 @@ export class ConsoleManager {
                             return;
                         }
 
-                        me.sendEntryTo(favs[i].entry, f.address, f.port)
+                        me.sendEntryTo(favs[i].entry, f.address, f.port, me)
                           .then((e) => {
                                     sendNext();
                                 },
@@ -1727,11 +1727,13 @@ export class ConsoleManager {
      * @param {vsrd_contracts.RemoteDebuggerEntry} entry The entry to send.
      * @param {string} host The host address.
      * @param {number} The TCP port.
+     * @param {ConsoleManager} me The underlying console manager.
      * 
      * @return {Promise<T>} The promise.
      */
     protected sendEntryTo(entry: vsrd_contracts.RemoteDebuggerEntry,
-                          host: string, port: number): Promise<vsrd_contracts.RemoteDebuggerEntry> {
+                          host: string, port: number,
+                          me: ConsoleManager): Promise<vsrd_contracts.RemoteDebuggerEntry> {
 
         return new Promise((resolve, reject) => {
             let showError = (err) => {
@@ -1741,31 +1743,46 @@ export class ConsoleManager {
                 });
             };
 
-            let json = new Buffer(JSON.stringify(entry),
-                                  'utf8');
+            try {
+                let json = new Buffer(JSON.stringify(entry),
+                                    'utf8');
 
-            let dataLength = Buffer.alloc(4);
-            dataLength.writeUInt32LE(json.length, 0);
+                // prepare JSON data
+                let plugins = me._context.plugins();
+                for (let i = plugins.length - 1; i >= 0; i--) {
+                    let p = plugins[i];
 
-            let client = new Net.Socket();
-
-            client.on('error', function(err) {
-                showError(err);
-            });
-
-            client.connect(port, host, () => {
-                try {
-                    client.write(dataLength);
-                    client.write(json);
-
-                    client.destroy();
-
-                    resolve(entry);
+                    if (p.transformMessage) {
+                        json = p.transformMessage(json);
+                    }
                 }
-                catch (e) {
-                    showError(e);
-                }
-            });
+
+                let dataLength = Buffer.alloc(4);
+                dataLength.writeUInt32LE(json.length, 0);
+
+                let client = new Net.Socket();
+
+                client.on('error', function(err) {
+                    showError(err);
+                });
+
+                client.connect(port, host, () => {
+                    try {
+                        client.write(dataLength);
+                        client.write(json);
+
+                        client.destroy();
+
+                        resolve(entry);
+                    }
+                    catch (e) {
+                        showError(e);
+                    }
+                });
+            }
+            catch (e) {
+                showError(e);
+            }
         });
     }
 

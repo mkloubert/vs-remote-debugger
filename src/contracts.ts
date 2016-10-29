@@ -35,9 +35,51 @@ export interface DebuggerContext {
     nick(): string;
 
     /**
+     * Returns the list of plugins.
+     */
+    plugins(): DebuggerPlugin[];
+
+    /**
      * Gets the underlying session.
      */
     session: any;
+}
+
+/**
+ * Describes a debugger plugin.
+ */
+export interface DebuggerPlugin {
+    /**
+     * Restores a transformed / encoded / crypted message.
+     * 
+     * @param {Buffer} [transformed] The transformed data.
+     * 
+     * @param {Buffer} The original data.
+     */
+    restoreMessage?: (transformed: Buffer) => Buffer;
+
+    /**
+     * Transforms a message into new data.
+     * 
+     * @param {Buffer} [msg] The UNtransformed data.
+     * 
+     * @param {Buffer} The transformed data.
+     */
+    transformMessage?: (msg: Buffer) => Buffer;
+}
+
+/**
+ * Describes a debugger plugin module.
+ */
+export interface DebuggerPluginModule {
+    /**
+     * Creates a new instance.
+     * 
+     * @param {DebuggerContext} ctx The debugger context.
+     * 
+     * @param {DebuggerPlugin} The new instance.
+     */
+    create?: (ctx: DebuggerContext) => DebuggerPlugin; 
 }
 
 /**
@@ -333,6 +375,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
      * The nickname of the debugger's user.
      */
     nick?: string;
+
+    /**
+     * List of plugins to load.
+     */
+    plugins?: string[];
 
     /**
      * The TCP port.

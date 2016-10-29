@@ -101,6 +101,12 @@ class RemoteDebugger {
      */
     public $ErrorHandler;
     /**
+     * A callable that "transforms" a JSON string into other data.
+     *
+     * @var callable
+     */
+    public $JsonTransformer;
+    /**
      * A value that defines how deep a tree of
      * variables can be to prevent stack overflows.
      * 
@@ -246,6 +252,7 @@ class RemoteDebugger {
         $callingLine = $backtrace[0 + $skipFrames];
 
         $filter = $this->EntryFilter;
+        $transformer = $this->JsonTransformer;
 
         if (null === $condition) {
             $condition = true;
@@ -511,6 +518,10 @@ class RemoteDebugger {
                 }
 
                 $json = @\json_encode($entry);
+                if (null !== $transformer) {
+                    $json = $transformer($json);
+                }
+
                 // echo @\json_encode($entry, JSON_PRETTY_PRINT);
 
                 if (false !== $json) {

@@ -3,6 +3,13 @@
 defined('MJK_REMOTE_DBG_TEST') or die();
 
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
+
+// activate the "gzip" plugin in your
+// launch.json file in VS Code!
+$debugger->JsonTransformer = function($json) {
+    return @\gzencode($json);
+};
+
 $debugger->ScriptRoot = __DIR__;
 $debugger->MaxDepth = 16;
 $debugger->addHost("localhost", 23979);

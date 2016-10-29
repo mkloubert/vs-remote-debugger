@@ -56,6 +56,15 @@ If you look at the [example code](https://github.com/mkloubert/vs-remote-debugge
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
 $debugger->addHost("my.remote.host.or.ip", 23979);
 
+
+// compress JSON data with GZIP
+// 
+// activate the "gzip" plugin in your
+// launch.json file in VS Code!
+$debugger->JsonTransformer = function($json) {
+    return @\gzencode($json);
+};
+
 // send the information you want to debug
 $debugger->dbg([
     'a' => date('Y-m-d H:i:s'),
