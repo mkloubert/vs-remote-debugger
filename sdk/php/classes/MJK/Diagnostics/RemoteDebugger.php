@@ -519,7 +519,7 @@ class RemoteDebugger {
 
                 $json = @\json_encode($entry);
                 if (null !== $transformer) {
-                    $json = $transformer($json);
+                    $json = $transformer($json, $eventData);
                 }
 
                 // echo @\json_encode($entry, JSON_PRETTY_PRINT);

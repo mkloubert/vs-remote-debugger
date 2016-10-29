@@ -587,6 +587,15 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 pluginName = ('' + pluginName).trim();
             }
 
+            let pluginCfg: string;
+            if (pluginName) {
+                let separator = pluginName.indexOf(':');
+                if (separator > -1) {
+                    pluginCfg = pluginName.substr(separator + 1);
+                    pluginName = pluginName.substr(0, separator).trim();
+                }
+            }
+
             if (!pluginName) {
                 continue;
             }
@@ -601,7 +610,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     let pluginModule: vsrd_contracts.DebuggerPluginModule = require(pluginFile);
                     if (pluginModule) {
                         if (pluginModule.create) {
-                            plugin = pluginModule.create(me._context);
+                            plugin = pluginModule.create(me._context, pluginCfg);
                         }
                     }
                 }

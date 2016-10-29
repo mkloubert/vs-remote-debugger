@@ -76,10 +76,11 @@ export interface DebuggerPluginModule {
      * Creates a new instance.
      * 
      * @param {DebuggerContext} ctx The debugger context.
+     * @param {String} [config] (Serialized) Config data.
      * 
      * @param {DebuggerPlugin} The new instance.
      */
-    create?: (ctx: DebuggerContext) => DebuggerPlugin; 
+    create?: (ctx: DebuggerContext, config: string) => DebuggerPlugin; 
 }
 
 /**
