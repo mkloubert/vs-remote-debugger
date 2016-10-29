@@ -1372,6 +1372,13 @@ export class ConsoleManager {
 
     //TODO: test code
     protected cmd_test(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        try {
+            result.body('A test');
+        }
+        catch (e) {
+            result.body('ERROR: ' + e);
+        }
+
         result.sendResponse();
     }
 
