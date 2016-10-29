@@ -27,11 +27,13 @@ import Path = require('path');
 import Net = require('net');
 
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
+const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
 const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
 const REGEX_CMD_LOG = /^(log)([\s])(.*)$/i;
+const REGEX_CMD_REGEX = /^(regex)([\s]?)(.*)$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
@@ -150,6 +152,16 @@ export interface ExecuteCommandResult {
     sendResponse: (response?: DebugProtocol.EvaluateResponse) => void;
 }
 
+interface VariableFinder {
+    findNext(): Promise<VariableFinderResult>
+}
+
+interface VariableFinderResult {
+    entry: vsrd_contracts.RemoteDebuggerEntry;
+    index: number;
+    variables: vsrd_contracts.RemoteDebuggerVariable[];
+}
+
 /**
  * A debugger console manager.
  */
@@ -158,6 +170,8 @@ export class ConsoleManager {
      * The underlying debugger context.
      */
     protected _context: vsrd_contracts.DebuggerContext;
+    private _currentFindIndex;
+    private _varFinder: VariableFinder;
 
     /**
      * Initializes a new instance of that class.
@@ -356,6 +370,119 @@ export class ConsoleManager {
     }
 
     /**
+     * 'find' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_find(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let expr = match[3];
+        if (expr) {
+            let parts = expr.split(' ').map((x) => {
+                return x.toLowerCase().trim();
+            }).filter((x) => {
+                return x ? true : false;
+            });
+
+            me._currentFindIndex = -1;
+
+            me._varFinder = {
+                findNext: () => {
+                    return new Promise<VariableFinderResult>((resolve, reject) => {
+                        try {
+                            let findRes: VariableFinderResult;
+
+                            let entries = result.entries();
+                            if (entries.length > 0) {
+                                ++me._currentFindIndex;
+                                if (me._currentFindIndex >= entries.length) {
+                                    me._currentFindIndex = 0;
+                                }
+
+                                for (let i = 0; i < entries.length; i++) {
+                                    let index = (me._currentFindIndex + i) % entries.length;
+                                    
+                                    let e = entries[index];
+                                    if (!e) {
+                                        continue;
+                                    }
+
+                                    let vars = e.v;
+                                    if (!vars) {
+                                        continue;
+                                    }
+
+                                    let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
+
+                                    for (let j = 0; j < vars.length; j++) {
+                                        let v = vars[j];
+                                        if (!v) {
+                                            continue;
+                                        }
+
+                                        let allDoMatch = true;
+                                        let strToSearchIn = JSON.stringify(v).toLowerCase().trim();
+                                        for (let k = 0; k < parts.length; k++) {
+                                            let p = parts[k];
+                                            
+                                            if (strToSearchIn.indexOf(p) < 0) {
+                                                allDoMatch = false;
+                                                break;
+                                            }
+                                        }
+
+                                        if (allDoMatch) {
+                                            matchingVars.push(v);
+                                        }
+                                    }
+
+                                    if (matchingVars.length > 0) {
+                                        me._currentFindIndex = index;
+                                        findRes = {
+                                            entry: e,
+                                            index: index,
+                                            variables: matchingVars,
+                                        };
+
+                                        break;
+                                    }
+                                }
+                            }
+
+                            resolve(findRes);
+                        }
+                        catch (e) {
+                            reject(e);
+                        }
+                    });
+                },
+            };
+
+            me.findNextVariables(result);
+        }
+        else {
+            if (!me._varFinder) {
+                result.body('Please define a search expression!');
+                result.sendResponse();
+            }
+            else {
+                me.findNextVariables(result);
+            }
+        }
+    }
+
+    /**
+     * 'next' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_find_next(result: ExecuteCommandResult, me: ConsoleManager): void {
+        me.findNextVariables(result);
+    }
+
+    /**
      * 'first' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -416,7 +543,7 @@ export class ConsoleManager {
      */
     protected cmd_help(result: ExecuteCommandResult): void {
         let output = ' Command                                     | Description\n';
-           output += '---------------------------------------------|-----------------------------------------------------------------------\n';
+           output += '---------------------------------------------|-----------------------------------------------------------------------------------\n';
            output += ' ?                                           | Shows that help screen\n';
            output += ' +                                           | Goes to next entry\n';
            output += ' -                                           | Goes to previous entry\n';
@@ -429,6 +556,7 @@ export class ConsoleManager {
            output += ' favs                                        | Lists all favorites\n';
            output += ' friends                                     | Displays the list of friends\n';
            output += ' first                                       | Jumps to first item\n';
+           output += ' find [$EXPR]                                | Starts a search for an expression inside the "Debugger" variables\n';
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
            output += ' history [$INDEXES]                          | List the logs of one or more entry\n';
            output += ' last                                        | Jumps to last entry\n';
@@ -436,11 +564,14 @@ export class ConsoleManager {
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
            output += ' log $MESSAGE                                | Adds a log message to the current entry\n';
            output += ' me                                          | Lists all network interfaces of that machine\n';
+           output += ' next                                        | Continues a "Debugger" variable search\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
            output += ' none                                        | Clears all favorites\n';
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
            output += ' refresh                                     | Refreshes the view\n';
+           output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
+           output += ' search [$EXPR]                              | Alias for "find" command\n';
            output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
            output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
            output += ' share [$FRIEND]*                            | Sends your favorites to one or more friend\n';
@@ -845,6 +976,108 @@ export class ConsoleManager {
         result.sendResponse();
 
         result.gotoIndex(newIndex);
+    }
+
+    /**
+     * 'regex' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_regex(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let pattern = match[3];
+        if (pattern) {
+            let regex: RegExp;
+            try {
+                regex = new RegExp(pattern);
+            }
+            catch (e) {
+                result.body('No valid regular expression: ' + e);
+                result.sendResponse();
+                
+                return;
+            }
+
+            me._currentFindIndex = -1;
+
+            me._varFinder = {
+                findNext: () => {
+                    return new Promise<VariableFinderResult>((resolve, reject) => {
+                        try {
+                            let findRes: VariableFinderResult;
+
+                            let entries = result.entries();
+                            if (entries.length > 0) {
+                                ++me._currentFindIndex;
+                                if (me._currentFindIndex >= entries.length) {
+                                    me._currentFindIndex = 0;
+                                }
+
+                                for (let i = 0; i < entries.length; i++) {
+                                    let index = (me._currentFindIndex + i) % entries.length;
+                                    
+                                    let e = entries[index];
+                                    if (!e) {
+                                        continue;
+                                    }
+
+                                    let vars = e.v;
+                                    if (!vars) {
+                                        continue;
+                                    }
+
+                                    let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
+
+                                    for (let j = 0; j < vars.length; j++) {
+                                        let v = vars[j];
+                                        if (!v) {
+                                            continue;
+                                        }
+
+                                        let strToSearchIn = '';
+                                        if (v.v) {
+                                            strToSearchIn = JSON.stringify(v.v);
+                                        }
+
+                                        if (regex.test(strToSearchIn)) {
+                                            matchingVars.push(v);
+                                        }
+                                    }
+
+                                    if (matchingVars.length > 0) {
+                                        me._currentFindIndex = index;
+                                        findRes = {
+                                            entry: e,
+                                            index: index,
+                                            variables: matchingVars,
+                                        };
+
+                                        break;
+                                    }
+                                }
+                            }
+
+                            resolve(findRes);
+                        }
+                        catch (e) {
+                            reject(e);
+                        }
+                    });
+                },
+            };
+
+            me.findNextVariables(result);
+        }
+        else {
+            if (!me._varFinder) {
+                result.body('Please define a regular expression!');
+                result.sendResponse();
+            }
+            else {
+                me.findNextVariables(result);
+            }
+        }
     }
 
     /**
@@ -1302,10 +1535,10 @@ export class ConsoleManager {
         let trimmedExpr = expr.trim();
         let lowerExpr = trimmedExpr.toLowerCase();
 
-        if ('+' == lowerExpr || 'next' == lowerExpr) {
+        if ('+' == lowerExpr) {
             action = this.cmd_next;
         }
-        else if ('-' == lowerExpr || 'prev' == lowerExpr) {
+        else if ('-' == lowerExpr) {
             action = this.cmd_prev;
         }
         else if ('all' == lowerExpr) {
@@ -1341,6 +1574,9 @@ export class ConsoleManager {
         else if ('me' == lowerExpr) {
             action = this.cmd_me;
         }
+        else if ('next' == lowerExpr) {
+            action = this.cmd_find_next;
+        }
         else if ('nodebug' == lowerExpr) {
             action = this.cmd_nodebug;
         }
@@ -1369,6 +1605,11 @@ export class ConsoleManager {
             // add
             action = toRegexAction(this.cmd_add,
                                    REGEX_CMD_ADD, trimmedExpr);
+        }
+        else if (REGEX_CMD_FIND.test(trimmedExpr)) {
+            // find
+            action = toRegexAction(this.cmd_find,
+                                   REGEX_CMD_FIND, trimmedExpr);
         }
         else if (REGEX_CMD_GOTO.test(trimmedExpr)) {
             // goto
@@ -1399,6 +1640,11 @@ export class ConsoleManager {
             // save
             action = toRegexAction(this.cmd_save,
                                    REGEX_CMD_SAVE, trimmedExpr);
+        }
+        else if (REGEX_CMD_REGEX.test(trimmedExpr)) {
+            // regex
+            action = toRegexAction(this.cmd_regex,
+                                   REGEX_CMD_REGEX, trimmedExpr);
         }
         else if (REGEX_CMD_SEND.test(trimmedExpr)) {
             // send
@@ -1431,6 +1677,47 @@ export class ConsoleManager {
             result.body('');
 
             action(result, this);
+        }
+    }
+
+    /**
+     * Continues a variable search.
+     * 
+     * @param {ExecuteCommandResult} The result context.
+     */
+    protected findNextVariables(result: ExecuteCommandResult) {
+        try {
+            let vf = this._varFinder;
+            if (!vf) {
+                result.body('No search started yet!');
+                result.sendResponse();
+
+                return;
+            }
+
+            vf.findNext()
+              .then((findRes) => {
+                        if (findRes) {
+                            let varNames = findRes.variables.map(x => x.n);
+
+                            result.body(`Found ${findRes.variables.length} variables in entry ${findRes.index + 1}: ${varNames.join(',')}`);
+                            result.sendResponse();
+
+                            result.gotoIndex(findRes.index);
+                        }
+                        else {
+                            result.body('Nothing found!');
+                            result.sendResponse();
+                        }
+                    },
+                    (err) => {
+                        result.body('Search error (2): ' + err);
+                        result.sendResponse();
+                    });
+        }
+        catch (e) {
+            result.body('Search error (1): ' + e);
+            result.sendResponse();
         }
     }
 
