@@ -27,7 +27,7 @@ import Path = require('path');
 import Net = require('net');
 
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
-const REGEX_CMD_COUNTER = /^(counter)([\s]+)([0-9]+)([\s]*)(pause)?$/i;
+const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
 const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
@@ -339,23 +339,32 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_counter(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let newValue = parseInt(match[3]);
-    
-        result.counter(newValue);
-        
-        let suffix: string = " and continued debugging";
-        let isPaused = false;
-
-        if (match[5]) {
-            if ('pause' == match[5].toLowerCase().trim()) {
-                isPaused = true;
-                suffix = " and switch to 'pause' mode";
-            }
+        let newValue: any = <number>result.counterStart();
+        if (match[3] && match[3].trim()) {
+            newValue = parseInt(match[3].trim());
         }
 
-        result.isPaused(isPaused);
+        if (false !== newValue && !isNaN(newValue)) {
+            result.counter(newValue);
+        
+            let suffix: string = " and continued debugging";
+            let isPaused = false;
 
-        result.body(`Enabled counter with ${newValue}${suffix}`);
+            if (match[5]) {
+                if ('pause' == match[5].toLowerCase().trim()) {
+                    isPaused = true;
+                    suffix = " and switch to 'pause' mode";
+                }
+            }
+
+            result.isPaused(isPaused);
+
+            result.body(`Enabled counter with ${newValue}${suffix}`);
+        }
+        else {
+            result.body('Please define a counter value!');
+        }
+        
         result.sendResponse();
     }
 
@@ -499,6 +508,10 @@ export class ConsoleManager {
 
                 output += me.toListEntryString(fav.entry, fav.index) + "\n";
             }
+
+            output += "\t";
+
+            result.body(`Total number of favorites: ${favorites.length}`);
         }
         else {
             output = null;
@@ -694,10 +707,10 @@ export class ConsoleManager {
            output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
            output += ' continue                                    | Continues debugging\n';
-           output += ' counter $VALUE [pause]                      | Sets the counter value\n';
+           output += ' counter [$VALUE] [pause]                    | Sets the counter value and disables "pause mode" by default\n';
            output += ' current                                     | Displays current index\n';
            output += ' debug                                       | Runs debugger itself in "debug mode"\n';
-           output += ' disable [pause]                             | Disables the counter and disabled "pause" mode\n';
+           output += ' disable [pause]                             | Disables the counter and disables "pause mode" by default\n';
            output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
            output += ' favs                                        | Lists all favorites\n';
            output += ' friends                                     | Displays the list of friends\n';
@@ -716,7 +729,8 @@ export class ConsoleManager {
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
            output += ' refresh                                     | Refreshes the view\n';
            output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
-           output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n'; 
+           output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n';
+           output += '                                             | and disables "pause mode" by default\n';  
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
            output += ' search [$EXPR]                              | Alias for "find" command\n';
            output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
@@ -873,7 +887,12 @@ export class ConsoleManager {
             output += me.toListEntryString(entry, index + 1) + "\n";
         }
 
-        if (numberOfDisplayedItems < 1) {
+        output += "\t";
+
+        if (numberOfDisplayedItems > 0) {
+            result.body(`Total number of entries: ${entries.length}`);
+        }
+        else {
             output = null;
             result.body("No items found!");
         }
@@ -896,12 +915,18 @@ export class ConsoleManager {
         let entries = result.entries();
         let file = match[3].trim();
 
+        let finish = () => {
+            result.sendResponse();
+        };
+
         let showError = (err) => {
-            //TODO: me.log('[ERROR :: save()]: ' + err);
+            result.body('Could not load file: ' + err);
         };
 
         try {
-            if ('' == file) {
+            if (!file) {
+                // use auto name
+
                 let existingFileNames = FS.readdirSync(result.sourceRoot());
                 let existingFiles: { path: string, stats: FS.Stats}[] = [];
                 for (let i = 0; i < existingFileNames.length; i++) {
@@ -938,36 +963,43 @@ export class ConsoleManager {
                 }
             }
 
-            if ('' == file) {
-                result.writeLine("Please select a file!");
-                return;
+            if (!file) {
+                result.body("Please select a file!");
             }
-
-            if (!Path.isAbsolute(file)) {
-                file = Path.join(result.sourceRoot(), file);
-            }
-
-            let loadedEntries: vsrd_contracts.RemoteDebuggerEntry[] = require(file);
-            if (loadedEntries && loadedEntries.length) {
-                let loadedEntryCount = 0;
-                for (let i = 0; i < loadedEntries.length; i++) {
-                    let entry = loadedEntries[i];
-                    if (entry) {
-                        entries.push(entry);
-                        ++loadedEntryCount;
-                    }
+            else {
+                if (!Path.isAbsolute(file)) {
+                    file = Path.join(result.sourceRoot(), file);
                 }
 
-                if (loadedEntries.length > 0) {
-                    result.writeLine(`Loaded ${loadedEntryCount} entries from '${file}'`);
+                let loadedEntries: vsrd_contracts.RemoteDebuggerEntry[]
+                    = JSON.parse(FS.readFileSync(file, 'utf8'));
 
-                    result.gotoIndex(result.currentIndex());
+                if (loadedEntries && loadedEntries.length) {
+                    let loadedEntryCount = 0;
+                    for (let i = 0; i < loadedEntries.length; i++) {
+                        let entry = loadedEntries[i];
+                        if (entry) {
+                            entries.push(entry);
+                            ++loadedEntryCount;
+                        }
+                    }
+
+                    if (loadedEntryCount > 0) {
+                        result.body(`Loaded ${loadedEntryCount} entries from '${file}'`);
+
+                        result.gotoIndex(result.currentIndex());
+                    }
+                    else {
+                        result.body('No entries loaded!');
+                    }
                 }
             }
         }
         catch (e) {
             showError(e);
         }
+
+        result.sendResponse();
     }
 
     /**
