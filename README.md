@@ -126,7 +126,7 @@ Input `?` inside your "command field" if you would like to display all available
 
 #### Display messages
 
-Input `list` to display the first 50 message:
+Input `list` to display the first 50 messages:
 
 ```
 Total number of entries: 12
@@ -545,7 +545,7 @@ Send favorites to 'tanja' (192.168.0.101:5979)
 | Input | Description |
 | ---- | --------- |
 | `all` | Marks all messages as favorites. |
-| `none` | Clear the list of favorites. |
+| `none` | Clears the list of favorites. |
 | `trim` | Removes all entries that are NOT marked as favorites. |
 
 #### Other commands
