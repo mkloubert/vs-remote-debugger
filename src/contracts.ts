@@ -395,6 +395,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     clients?: string[];
 
     /**
+     * The initial counter value.
+     */
+    counter?: number;
+
+    /**
      * List of friends.
      */
     friends?: string[];

@@ -49,6 +49,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _context: vsrd_contracts.DebuggerContext;
     /**
+     * Stores the current counter value. 
+     */
+    protected _counter: number | boolean;
+    /**
+     * Stores the counter start value.
+     */
+    protected _counterStart: number | boolean;
+    /**
      * The current entry.
      */
     protected _currentEntry: number = -1;
@@ -138,7 +146,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let c = me._console;
         if (c) {
-            
+            // build 'result' context
             let result: vsrd_console.ExecuteCommandResult = {
                 args: args,
                 body: function(b?) {
@@ -172,6 +180,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                     return r.body;
                 },
+                counter: function(v?) {
+                    if (arguments.length > 0) {
+                        me._counter = v;
+                    }
+
+                    return me._counter;
+                },
+                counterStart: () => me._counterStart,
                 currentEntry: () => me.entry,
                 currentIndex: function(nv?) {
                     if (arguments.length > 0) {
@@ -243,13 +259,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 sourceRoot: function() {
                     return me._sourceRoot;
                 },
-                write: function(m?) {
-                    if (m) {
-                        this.sendEvent(new vscode_dbg_adapter.OutputEvent('' + m));
-                    }
+                write: function(m) {
+                    this.sendEvent(new vscode_dbg_adapter.OutputEvent('' + m));
                 },
                 writeLine: function(m?) {
-                    if (!m) {
+                    if (arguments.length < 1) {
                         m = '';
                     }
 
@@ -418,6 +432,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 me.sendResponse(response);
             },
+            counter: args.counter,
             isDebug: args.isDebug ? true : false,
             isPaused: args.isPaused ? true : false,
             maxMessageSize: args.maxMessageSize,
@@ -769,6 +784,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         me._currentEntry = -1;
 
+        me._counterStart = opts.counter;
+        if (!me._counterStart) {
+            me._counterStart = false;
+        }
+
+        me._counter = me._counterStart;
+
         let invokeCompleted = (err?: any) => {
             if (opts.completed) {
                 opts.completed(err);
@@ -873,11 +895,26 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             };
                         }
 
-                        if (me._isPaused) {
-                            return;
+                        let addEntry = true;
+
+                        // paused?
+                        if (addEntry && me._isPaused) {
+                            addEntry = false;
                         }
 
-                        let addEntry = true;
+                        // counter
+                        let cnt = me._counter;
+                        if (addEntry && false !== cnt) {
+                            if (cnt > 0) {
+                                me._counter = <number>cnt - 1;
+                            }
+                            else {
+                                me._isPaused = true;
+                                me.log(`Counter is ${cnt}. Switched to 'pause' mode!`);
+
+                                addEntry = false;
+                            }
+                        }
 
                         // check for client
                         if (addEntry && entry.c) {

@@ -27,6 +27,8 @@ import Path = require('path');
 import Net = require('net');
 
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
+const REGEX_CMD_COUNTER = /^(counter)([\s]+)([0-9]+)([\s]*)(pause)?$/i;
+const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
 const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
@@ -35,6 +37,7 @@ const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
 const REGEX_CMD_LOG = /^(log)([\s])(.*)$/i;
 const REGEX_CMD_REGEX = /^(regex)([\s]?)(.*)$/i;
+const REGEX_CMD_RESET = /^(reset)([\s]*)(pause)?$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
@@ -76,6 +79,16 @@ export interface ExecuteCommandResult {
      * Gets or sets the body object of the underlying response.
      */
     body(newValue?: ExecuteCommandResponseBody | string): ExecuteCommandResponseBody;
+
+    /**
+     * Gets or sets the current counter value.
+     */
+    counter: (newValue?: number | boolean) => number | boolean;
+
+    /**
+     * Gets the initial counter value from the config.
+     */
+    counterStart: () => number | boolean;
 
     /**
      * Gets the current entry.
@@ -140,7 +153,7 @@ export interface ExecuteCommandResult {
     /**
      * Writes to output.
      */
-    write(msg?: any);
+    write(msg: any);
 
     /**
      * Writes to output and adds a new line.
@@ -319,6 +332,34 @@ export class ConsoleManager {
     }
 
     /**
+     * 'counter' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_counter(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let newValue = parseInt(match[3]);
+    
+        result.counter(newValue);
+        
+        let suffix: string = " and continued debugging";
+        let isPaused = false;
+
+        if (match[5]) {
+            if ('pause' == match[5].toLowerCase().trim()) {
+                isPaused = true;
+                suffix = " and switch to 'pause' mode";
+            }
+        }
+
+        result.isPaused(isPaused);
+
+        result.body(`Enabled counter with ${newValue}${suffix}`);
+        result.sendResponse();
+    }
+
+    /**
      * 'current' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -338,6 +379,32 @@ export class ConsoleManager {
         result.isDebug(true);
 
         result.body('Debug mode');
+        result.sendResponse();
+    }
+
+    /**
+     * 'disable' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_disable(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        result.counter(false);
+
+        let suffix: string = " and continued debugging";
+        let isPaused = false;
+
+        if (match[3]) {
+            if ('pause' == match[3].toLowerCase().trim()) {
+                isPaused = true;
+                suffix = " and switch to 'pause' mode";
+            }
+        }
+
+        result.isPaused(isPaused);
+
+        result.body('Disabled counter' + suffix);
         result.sendResponse();
     }
 
@@ -384,11 +451,8 @@ export class ConsoleManager {
                                     },
 
                                     writeLine: function(msg) {
-                                        if (msg) {
-                                            this.write('' + msg);
-                                        }
-
-                                        return this.write('\n');
+                                        result.writeLine(msg);
+                                        return this;
                                     }
                                 };
 
@@ -630,8 +694,10 @@ export class ConsoleManager {
            output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
            output += ' continue                                    | Continues debugging\n';
+           output += ' counter $VALUE [pause]                      | Sets the counter value\n';
            output += ' current                                     | Displays current index\n';
-           output += ' debug                                       | Runs debugger itself in "debug mode"\n'; 
+           output += ' debug                                       | Runs debugger itself in "debug mode"\n';
+           output += ' disable [pause]                             | Disables the counter and disabled "pause" mode\n';
            output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
            output += ' favs                                        | Lists all favorites\n';
            output += ' friends                                     | Displays the list of friends\n';
@@ -650,6 +716,7 @@ export class ConsoleManager {
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
            output += ' refresh                                     | Refreshes the view\n';
            output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
+           output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n'; 
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
            output += ' search [$EXPR]                              | Alias for "find" command\n';
            output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
@@ -1158,6 +1225,41 @@ export class ConsoleManager {
                 me.findNextVariables(result);
             }
         }
+    }
+
+    /**
+     * 'reset' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_reset(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let newValue = result.counterStart();
+        result.counter(newValue);
+        
+        let body: string;
+        if (false !== newValue) {
+            body = `Reset counter to ${newValue}`;
+        }
+        else {
+            body = `Disabled counter`;
+        }
+
+        let suffix: string = " and continued debugging";
+        let isPaused = false;
+
+        if (match[3]) {
+            if ('pause' == match[3].toLowerCase().trim()) {
+                isPaused = true;
+                suffix = " and switch to 'pause' mode";
+            }
+        }
+
+        result.isPaused(isPaused);
+
+        result.body(`${body}${suffix}`);
+        result.sendResponse();
     }
 
     /**
@@ -1694,6 +1796,16 @@ export class ConsoleManager {
             action = toRegexAction(this.cmd_add,
                                    REGEX_CMD_ADD, trimmedExpr);
         }
+        else if (REGEX_CMD_COUNTER.test(trimmedExpr)) {
+            // counter
+            action = toRegexAction(this.cmd_counter,
+                                   REGEX_CMD_COUNTER, trimmedExpr);
+        }
+        else if (REGEX_CMD_DISABLE.test(leftTrimmerExpr)) {
+            // disable
+            action = toRegexAction(this.cmd_disable,
+                                   REGEX_CMD_DISABLE, trimmedExpr);
+        }
         else if (REGEX_CMD_EXEC.test(leftTrimmerExpr)) {
             // exec
             action = toRegexAction(this.cmd_exec,
@@ -1729,15 +1841,20 @@ export class ConsoleManager {
             action = toRegexAction(this.cmd_log,
                                    REGEX_CMD_LOG, trimmedExpr);
         }
-        else if (REGEX_CMD_SAVE.test(trimmedExpr)) {
-            // save
-            action = toRegexAction(this.cmd_save,
-                                   REGEX_CMD_SAVE, trimmedExpr);
-        }
         else if (REGEX_CMD_REGEX.test(trimmedExpr)) {
             // regex
             action = toRegexAction(this.cmd_regex,
                                    REGEX_CMD_REGEX, trimmedExpr);
+        }
+        else if (REGEX_CMD_RESET.test(leftTrimmerExpr)) {
+            // reset
+            action = toRegexAction(this.cmd_reset,
+                                   REGEX_CMD_RESET, trimmedExpr);
+        }
+        else if (REGEX_CMD_SAVE.test(trimmedExpr)) {
+            // save
+            action = toRegexAction(this.cmd_save,
+                                   REGEX_CMD_SAVE, trimmedExpr);
         }
         else if (REGEX_CMD_SEND.test(trimmedExpr)) {
             // send
