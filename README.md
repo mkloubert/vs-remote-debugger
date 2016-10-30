@@ -357,7 +357,7 @@ Send favorites to '192.168.0.234:5979'
 
 Another way to do this is, to define a list of friends in your *launch.json* (*friends* property of *configurations* section):
 
-```
+```json
 {
     "version": "0.24.0",
     "configurations": [
