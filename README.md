@@ -186,9 +186,11 @@ Total number of entries: 12
     From:  '::ffff:127.0.0.1:56853' (2016-10-30 14:29:43)
 ```
 
-#### Jump between messages
+#### Jump between messages / search
 
-You the `goto` command to select a specific message:
+##### Jump
+
+Use the `goto` command to select a specific message:
 
 ```
 goto 2
@@ -210,6 +212,24 @@ If you want to know what index is currently selected, use `current`:
 current
 Current index: 2
 ```
+
+##### Search
+
+Use the `find` command to search for a strings inside the "Debugger variables". The following example searches for values that contain `Tanja` and `Kloubert`: 
+
+```
+find tanja kloubert
+Found 1 variables in entry 2: $D
+```
+
+Another kind of search is to use regular expression by using `regex` command:
+
+```
+regex (2016\-01\-)
+Found 1 variables in entry 2: $A
+```
+
+To jump to the next match, simple use `next`.
 
 #### Additional information
 
