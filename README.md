@@ -170,18 +170,44 @@ Total number of entries: 12
      From:  '::ffff:127.0.0.1:56860' (2016-10-30 14:29:44)
 ```
 
-If you want to display the first 5 entries only, simply input `list 0 5`:
+If you want to display the entries 3-7 only, simply input `list 2 5` (skip the first `2` entries and display `5` elements):
 
 ```
 Total number of entries: 12
-[1] /test.php (31)
-    From:  '::ffff:127.0.0.1:56843' (2016-10-30 14:29:40)
-[2] /test.php (35)
-    From:  '::ffff:127.0.0.1:56844' (2016-10-30 14:29:40)
 [3] /test.php (31)
     From:  '::ffff:127.0.0.1:56847' (2016-10-30 14:29:41)
 [4] /test.php (35)
     From:  '::ffff:127.0.0.1:56848' (2016-10-30 14:29:41)
 [5] /test.php (31)
     From:  '::ffff:127.0.0.1:56850' (2016-10-30 14:29:42)
+[6] /test.php (35)
+    From:  '::ffff:127.0.0.1:56851' (2016-10-30 14:29:42)
+[7] /test.php (31)
+    From:  '::ffff:127.0.0.1:56853' (2016-10-30 14:29:43)
 ```
+
+#### Jump between messages
+
+You the `goto` command to select a specific message:
+
+```
+goto 2
+New index: 2
+```
+
+The following commands provide shortcuts for `goto`:
+
+| Name | Description |
+| ---- | --------- |
+| `+` | Goto to next message. |
+| `-` | Goto to previous message. |
+| `first` | Goto to FIRST message. |
+| `last` | Goto to LAST message. |
+
+If you want to know what index is currently select, use `current`:
+
+```
+current
+Current index: 2
+```
+
