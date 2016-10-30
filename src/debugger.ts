@@ -74,6 +74,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
     /**
+     * Stores the format that is used to generate names for message files.
+     */
+    protected _filenameFormat: string;
+    /**
      * List of friends.
      */
     protected _friends: vsrd_contracts.Friend[];
@@ -215,6 +219,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                     return me._favorites;
                 },
+                filenameFormat: () => me._filenameFormat,
                 friends: () => me._friends,
                 gotoIndex: function(newIndex?: number, response?: DebugProtocol.EvaluateResponse) {
                     if (arguments.length < 1) {
@@ -434,6 +439,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         };
 
         me._sourceRoot = args.localSourceRoot;
+        me._filenameFormat = args.filenameFormat;
         me._console = me.createConsoleManager(args);
 
         me.reloadPlugins(args.plugins);

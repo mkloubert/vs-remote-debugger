@@ -415,6 +415,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     counter?: number;
 
     /**
+     * The format that is used to generate names for message files.
+     */
+    filenameFormat?: string;
+
+    /**
      * List of friends.
      */
     friends?: string[];

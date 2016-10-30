@@ -3,7 +3,7 @@
     "displayName": "Generic Remote Debugger",
     "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
     "icon": "icon.png",
-    "version": "0.26.0",
+    "version": "0.27.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.5.0"
@@ -46,6 +46,10 @@
                         "counter": {
                             "type": "number",
                             "description": "The initial counter value."
+                        },
+                        "filenameFormat": {
+                            "type": "string",
+                            "description": "The format that is used to generate names for message files."
                         },
                         "friends": {
                             "type": "array",
@@ -92,6 +96,7 @@
                     "bigStepBack": 10,
                     "bigStepForward": 10,
                     "clients": [],
+                    "filenameFormat": "vsrd_favs_${year}${month}${day}_${hours}${minutes}${seconds}",
                     "localSourceRoot": "${workspaceRoot}",
                     "maxMessageSize": 16777215,
                     "plugins": [ "gzip" ],

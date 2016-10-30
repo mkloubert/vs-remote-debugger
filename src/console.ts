@@ -117,6 +117,11 @@ export interface ExecuteCommandResult {
     favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.RemoteDebuggerFavorite[];
 
     /**
+     * Gets the format that is used to generate names for message files.
+     */
+    filenameFormat(): string;
+
+    /**
      * Gets the list of friends.
      */
     friends(): vsrd_contracts.Friend[];
@@ -1368,6 +1373,8 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_save(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let now = new Date();
+        
         let favorites = result.favorites();
         let file = match[3].trim();
 
@@ -1381,10 +1388,25 @@ export class ConsoleManager {
                 if ('' == file) {
                     // auto save
 
-                    let now = new Date();
+                    let baseName = result.filenameFormat();
+                    if (baseName) {
+                        baseName = ('' + baseName).trim();
+                    }
+                    if (!baseName) {
+                        baseName = 'vsrd_favs_${timestamp}';
+                    }
+
+                    // process placeholders
+                    baseName = baseName.replace('${timestamp}', '' + now.getTime());
+                    baseName = baseName.replace('${year}', '' + now.getFullYear());
+                    baseName = baseName.replace('${month}', '' + (now.getMonth() + 1));
+                    baseName = baseName.replace('${day}', '' + now.getDate());
+                    baseName = baseName.replace('${hours}', '' + now.getHours());
+                    baseName = baseName.replace('${minutes}', '' + now.getMinutes());
+                    baseName = baseName.replace('${seconds}', '' + now.getSeconds());
+                    baseName = baseName.replace('${timezone}', '' + now.getTimezoneOffset());
 
                     let index: number = -1;
-                    let baseName = 'vsrd_favs_' + now.getTime();
                     let fullPath: string;
                     let stats: FS.Stats;
                     
