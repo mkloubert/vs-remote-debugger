@@ -6,6 +6,10 @@
 
 [Visual Studio Code](https://code.visualstudio.com/) (VS Code) extension that makes it easy to debug code on a remote host by using a generic way.
 
+## License
+
+[MIT license](https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE)
+
 ## Why?
 
 In many scenarios you are not able to install debuggers like [XDebug](https://xdebug.org/).

@@ -2,7 +2,7 @@
     "name": "vs-remote-debugger",
     "displayName": "Generic Remote Debugger",
     "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
-    "version": "0.24.3",
+    "version": "0.25.0",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.5.0"
@@ -137,7 +137,7 @@
     "homepage": "https://github.com/mkloubert/vs-remote-debugger",
     "readmeFilename": "README.md",
     "license": {
-        "type": "LGPL",
+        "type": "MIT",
         "url": "https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE"
     }
 }
