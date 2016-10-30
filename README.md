@@ -389,6 +389,13 @@ If you simply input `counter`, the debugger will use the value defined in the *c
 }
 ```
 
+Example:
+
+```
+counter
+Enabled counter with 2 and continued debugging
+```
+
 #### Work with favorites
 
 You can mark one or more message as favorite. Select the message you would like to mark and enter `add`:
