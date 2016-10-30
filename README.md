@@ -204,10 +204,44 @@ The following commands provide shortcuts for `goto`:
 | `first` | Goto to FIRST message. |
 | `last` | Goto to LAST message. |
 
-If you want to know what index is currently select, use `current`:
+If you want to know what index is currently selected, use `current`:
 
 ```
 current
 Current index: 2
 ```
+
+#### Additional information
+
+##### Notes
+
+`set` stores additional information inside a message. Select the message that should contain that kind of information and define a text:
+
+```
+goto 2
+New index: 2
+set Hello I am a note for second entry!
+Set information for 2: Hello I am a note for second entry!
+```
+
+Now you see that note in the list of message:
+
+```
+list
+Total number of entries: 2
+[1] /test.php (31)
+    From:  '::ffff:127.0.0.1:57074' (2016-10-30 14:46:19)
+[2] /test.php (35)
+    Notes: Hello I am a note for second entry!
+    From:  '::ffff:127.0.0.1:57075' (2016-10-30 14:46:19)
+```
+
+If you would like to remove information from one or more entries, simple use `unset`:
+
+| Input | Description |
+| ---- | --------- |
+| `unset` | Removes information from current message. |
+| `unset 1` | Removes information from message 1. |
+| `unset 2-7` | Removes information from message 2 to 7. |
+| `unset 8,3-7,9` | Removes information from message 8, 3-7 and 9. |
 
