@@ -372,7 +372,7 @@ disable pause
 Disabled counter and switch to 'pause' mode
 ```
 
-If you simply input `counter`, the debugger will use the value defined in the *counter* (*configurations* sections) of your *launch.json* file:
+If you simply input `counter` or `counter pause`, the debugger will use the value defined in the *counter* (*configurations* sections) of your *launch.json* file:
 
 ```json
 {
@@ -393,7 +393,9 @@ Example:
 
 ```
 counter
-Enabled counter with 2 and continued debugging
+Enabled counter with 1234 and continued debugging
+counter pause
+Enabled counter with 1234 and switch to 'pause' mode
 ```
 
 #### Work with favorites
