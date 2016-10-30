@@ -337,6 +337,58 @@ state
 Paused
 ```
 
+##### Automatic switch
+
+###### Counter
+
+You can use a counter to switch to *pause mode* automatically. The command `counter 100`, e.g., will switch after `100` messages have been loaded:
+
+```
+counter 100
+Enabled counter with 100 and continued debugging
+
+...
+
+[vs-remote-debugger] Counter is 0. Switched to 'pause' mode!
+```
+
+You also can reset and disable the counter by using `reset` and `disable` commands:
+
+```
+reset
+Reset counter to 1 and continued debugging
+disable
+Disabled counter and continued debugging
+```
+
+All commands support the optional `pause` argument:
+
+```
+counter 1 pause
+Enabled counter with 1 and switch to 'pause' mode
+reset pause
+Reset counter to 2 and switch to 'pause' mode
+disable pause
+Disabled counter and switch to 'pause' mode
+```
+
+If you simply input `counter`, the debugger will use the value defined in the *counter* (*configurations* sections) of your *launch.json* file:
+
+```json
+{
+    "version": "0.24.0",
+    "configurations": [
+        {
+            // ...
+            
+            "counter": 1234,
+            
+            // ...
+        }
+    ]
+}
+```
+
 #### Work with favorites
 
 You can mark one or more message as favorite. Select the message you would like to mark and enter `add`:
