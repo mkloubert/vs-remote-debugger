@@ -267,6 +267,8 @@ history 1
        This is a log message for entry nr. 1
 ```
 
+The value next to the timestamp (`mkloubert`) can be changed by setting the *nick* property in the *configurations* section of your *launch.json* file.
+
 Examples:
 
 | Input | Description |
@@ -276,3 +278,80 @@ Examples:
 | `history 3-5` | Displays logs of messages 3 to 5. |
 | `history 5-` | Displays logs of messages beginning at 5. |
 | `history 12,6-8,2` | Displays logs of messages 12, 6-8 and 2. |
+
+#### Pause the debugger
+
+You can set the debugger in *pause mode*, what means that all message you receive will be dropped instead of adding them to your list.
+
+You the `pause` command to switch to that mode:
+
+```
+pause
+Paused
+```
+
+Leave the mode with `continue`:
+
+```
+continue
+Running
+```
+
+Change state with `toggle`:
+
+```
+toggle
+Paused
+toggle
+Running
+```
+
+And last but not least, display the current state by using `state`:
+
+```
+state
+Paused
+```
+
+#### Work with favorites
+
+You can mark one or more message as favorite. Select the message you would like to mark and enter `add`:
+
+```
+goto 1
+New index: 1
+add
+The following 1 favorites were added: 1
+```
+
+Examples:
+
+| Input | Description |
+| ---- | --------- |
+| `add 59` | Adds message 59 as favorite. |
+| `add 1-12` | Adds message 1 to 12 as favorites. |
+| `add 3-` | Adds all messages as favorites beginning at 3. |
+| `add 9,18-20,23979` | Adds messages 9, 18-20 and 23979 as favorites. |
+
+Input `favs` to display your current favorites:
+
+```
+favs
+[1] /test.php (31)
+    From:  '::ffff:127.0.0.1:57157' (2016-10-30 15:00:38)
+[3] /test.php (31)
+    From:  '::ffff:127.0.0.1:57300' (2016-10-30 15:19:45)
+```
+
+##### Share
+
+You also can share your favorites with other clients and constributors that also have a running instance of the debugger.
+
+The following example sends your favorites to `192.168.0.234:5979` (target MUST NOT be in 'pause' mode, otherwise the entries will be dropped there):
+
+```
+send 192.168.0.234 23979
+
+Send favorites to '192.168.0.234:5979'
+```
+
