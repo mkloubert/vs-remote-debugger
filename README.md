@@ -242,6 +242,37 @@ If you would like to remove information from one or more entries, simple use `un
 | ---- | --------- |
 | `unset` | Removes information from current message. |
 | `unset 1` | Removes information from message 1. |
-| `unset 2-7` | Removes information from message 2 to 7. |
-| `unset 8,3-7,9` | Removes information from message 8, 3-7 and 9. |
+| `unset 2-7` | Removes information from messages 2 to 7. |
+| `unset 4-` | Removes information from messages beginning at 4. |
+| `unset 8,3-7,9` | Removes information from messages 8, 3-7 and 9. |
 
+##### Logging
+
+You also can store log entries inside messages by using `log`. Select the entry you would like to 'log' and define a message:
+
+```
+goto 1
+New index: 1
+log This is a log message for entry nr. 1
+Add log for 1
+```
+
+`history` displays the logs of one or more entry:
+
+```
+history 1
+
+[1] /test.php (31)
+    #1 [2016-10-30 15:00:56] - mkloubert
+       This is a log message for entry nr. 1
+```
+
+Examples:
+
+| Input | Description |
+| ---- | --------- |
+| `history` | Displays logs of current message. |
+| `history 1000` | Displays logs of message 1000. |
+| `history 3-5` | Displays logs of messages 3 to 5. |
+| `history 5-` | Displays logs of messages beginning at 5. |
+| `history 12,6-8,2` | Displays logs of messages 12, 6-8 and 2. |
