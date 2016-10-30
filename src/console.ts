@@ -958,28 +958,35 @@ export class ConsoleManager {
                 pattern = pattern.replace('${hours}', '(0[0-9]|1[0-9]|2[0-3])');
                 pattern = pattern.replace('${minutes}', '([0-5][0-9])');
                 pattern = pattern.replace('${seconds}', '([0-5][0-9])');
-                pattern = pattern.replace('${timezone}', '([0-9]+)');
+                pattern = pattern.replace('${timezone}', '([\\-]?)([0-9]+)');
                 pattern = pattern.replace('${rand}', '([0-9]+)');
 
-                let regex = new RegExp('/' + pattern + '/');
+                pattern = '^' + pattern + '(\\.json)$';
 
-                let existingFileNames = FS.readdirSync(result.sourceRoot());
                 let existingFiles: { path: string, stats: FS.Stats}[] = [];
-                for (let i = 0; i < existingFileNames.length; i++) {
-                    let fileName = existingFileNames[i];
-                    if (!regex.test(fileName.trim())) {
-                        continue;
-                    }
+                try {
+                    let regex = new RegExp(pattern, 'i');
 
-                    let fullPath = Path.join(result.sourceRoot(), fileName);
-                    
-                    let ls = FS.lstatSync(fullPath);
-                    if (ls.isFile()) {
-                        existingFiles.push({
-                            path: fullPath,
-                            stats: ls,
-                        });
+                    let existingFileNames = FS.readdirSync(result.sourceRoot());
+                    for (let i = 0; i < existingFileNames.length; i++) {
+                        let fileName = existingFileNames[i];
+                        if (!regex.test(fileName.trim())) {
+                            continue;
+                        }
+
+                        let fullPath = Path.join(result.sourceRoot(), fileName);
+                        
+                        let ls = FS.lstatSync(fullPath);
+                        if (ls.isFile()) {
+                            existingFiles.push({
+                                path: fullPath,
+                                stats: ls,
+                            });
+                        }
                     }
+                }
+                catch (e) {
+                    // ignore
                 }
 
                 if (existingFiles.length > 0) {
