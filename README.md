@@ -275,6 +275,8 @@ goto 1
 New index: 1
 log This is a log message for entry nr. 1
 Add log for 1
+log This is a 2nd log message for entry one
+Add log for 1
 ```
 
 `history` displays the logs of one or more entry:
@@ -285,9 +287,11 @@ history 1
 [1] /test.php (31)
     #1 [2016-10-30 15:00:56] - mkloubert
        This is a log message for entry nr. 1
+    #2 [2016-10-30 15:01:00] - mkloubert
+       This is a 2nd log message for entry one
 ```
 
-The value next to the timestamp (`mkloubert`) can be changed by setting the *nick* property in the *configurations* section of your *launch.json* file.
+The values next to the timestamps (`mkloubert`) can be changed by setting the *nick* property in the *configurations* section of your *launch.json* file.
 
 Examples:
 
