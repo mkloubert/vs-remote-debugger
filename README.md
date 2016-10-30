@@ -283,7 +283,7 @@ Examples:
 
 You can set the debugger in *pause mode*, what means that all message you receive will be dropped instead of adding them to your list.
 
-You the `pause` command to switch to that mode:
+Use the `pause` command to switch to that mode:
 
 ```
 pause
@@ -297,7 +297,7 @@ continue
 Running
 ```
 
-Change state with `toggle`:
+Change current state with `toggle`:
 
 ```
 toggle
@@ -350,8 +350,44 @@ You also can share your favorites with other clients and constributors that also
 The following example sends your favorites to `192.168.0.234:5979` (target MUST NOT be in 'pause' mode, otherwise the entries will be dropped there):
 
 ```
-send 192.168.0.234 23979
+send 192.168.0.234 5979
 
 Send favorites to '192.168.0.234:5979'
 ```
 
+Another way to do this is, to define a list of friends in your *launch.json* (*friends* property of *configurations* section):
+
+```
+{
+    "version": "0.24.0",
+    "configurations": [
+        {
+            // ...
+            
+            "friends": [
+                "192.168.0.102:1781=yvonne",
+                "192.168.0.100:23979=marcel",
+                "192.168.0.101:5979=tanja"
+            ],
+            
+            // ...
+        }
+    ]
+}
+```
+
+Each entry has the following format:
+
+```
+{REMOTE-ADDRESS}:{PORT}[={NAME}]
+```
+
+*{NAME}* is optional, but it is recommed to define that value explicitly.
+
+Use the `share` command, if you want to send your favorites to *yvonne* and *tanja*:
+
+```
+share yvonne tanja
+Send favorites to 'yvonne' (192.168.0.102:1781)
+Send favorites to 'tanja' (192.168.0.101:5979)
+```
