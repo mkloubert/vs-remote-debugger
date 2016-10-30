@@ -428,6 +428,61 @@ favs
     From:  '::ffff:127.0.0.1:57300' (2016-10-30 15:19:45)
 ```
 
+##### Saving and loading
+
+###### Save to file
+
+`save` saves your favorites to a JSON file:
+
+```
+save
+Saved favorites to 'm:\VS Code\proj\vs-remote-debugger\sdk\php\vsrd_favs_1477841896882.json'
+```
+
+The command supports an optional `$FILE` argument:
+
+```
+save favs/myfavs.json
+Saved favorites to 'm:\VS Code\proj\vs-remote-debugger\sdk\php\favs\myfavs.json'
+save e:\test\myfavs.json
+Saved favorites to 'e:\test\myfavs.json'
+```
+
+The first execution uses as relative path by using the value from *localSourceRoot* property (*configurations*) section of your *launch.json* file:
+
+```json
+{
+    "version": "0.24.0",
+    "configurations": [
+        {
+            // ...
+            
+            "localSourceRoot": "${workspaceRoot}",
+            
+            // ...
+        }
+    ]
+}
+```
+
+###### Load from file
+
+`load` loads the messages from the last created JSON file and appends them to your current list:
+
+```
+load
+Loaded 1 entries from 'm:\VS Code\proj\vs-remote-debugger\sdk\php\vsrd_favs_1477841896882.json'
+```
+
+According to `save`, the command also supports an optional `$FILE` argument:
+
+```
+load favs/myfavs.json
+Loaded 1 entries from 'm:\VS Code\proj\vs-remote-debugger\sdk\php\favs\myfavs.json'
+load e:\test\myfavs.json
+Loaded 1 entries from 'e:\test\myfavs.json'
+```
+
 ##### Share
 
 You also can share your favorites with other clients and constributors that also have a running instance of the debugger.
@@ -498,15 +553,6 @@ Send favorites to 'tanja' (192.168.0.101:5979)
 ##### clear
 
 Removes all loaded messages and favorites.
-
-```
-clear
-Cleared
-```
-
-##### nodebug
-
-Switches the debugger itself to *NON debug mode*.
 
 ```
 clear
