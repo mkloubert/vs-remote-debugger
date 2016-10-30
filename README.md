@@ -54,7 +54,7 @@ And start debugging:
 
 Install the [RemoteDebugger.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) in your application.
 
-If you look at the [example code](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/test.php) you can see how the class can be used:
+If you look at the [example code](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/test1.inc.php) you can see how the class can be used:
 
 ```php
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
