@@ -502,7 +502,38 @@ save
 Saved favorites to 'm:\VS Code\proj\vs-remote-debugger\sdk\php\vsrd_favs_1477841896882.json'
 ```
 
-The command supports an optional `$FILE` argument:
+If you want to change the format of auto generated filenames, you can set the *filenameFormat* property in the *configurations* section of your *launch.json* file:
+
+```json
+{
+    "version": "0.24.0",
+    "configurations": [
+        {
+            // ...
+            
+            "filenameFormat": "vsrd_favs_${year}${month}${day}_${hours}${minutes}${seconds}",
+            
+            // ...
+        }
+    ]
+}
+```
+
+As you can see, you are able to use placeholders:
+
+| Input | Description |
+| ---- | --------- |
+| `$day` | The day between `01` and `31`. |
+| `$hours` | The hours between `00` and `23`. |
+| `$minutes` | The minutes between `00` and `59`. |
+| `$month` | The month between `01` and `12`. |
+| `$random` | The random number between `0` and `597923979`. |
+| `$seconds` | The seconds between `00` and `59`. |
+| `$timestamp` | The UNIX timestamp. |
+| `$timezone` | The timezone offset in minutes. |
+| `$year` | The year like `2016`. |
+
+To define an explicit filename, there is the optional `$FILE` argument:
 
 ```
 save favs/myfavs.json
@@ -511,7 +542,7 @@ save e:\test\myfavs.json
 Saved favorites to 'e:\test\myfavs.json'
 ```
 
-The first execution uses as relative path by using the value from *localSourceRoot* property (*configurations*) section of your *launch.json* file:
+The first execution uses as relative path by using the value from *localSourceRoot* property (*configurations* section) of your *launch.json* file:
 
 ```json
 {
