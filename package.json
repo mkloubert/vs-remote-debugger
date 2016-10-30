@@ -2,7 +2,7 @@
     "name": "vs-remote-debugger",
     "displayName": "Generic Remote Debugger",
     "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
-    "version": "0.25.1",
+    "version": "0.25.2",
     "publisher": "mkloubert",
     "engines": {
         "vscode": "^1.5.0"

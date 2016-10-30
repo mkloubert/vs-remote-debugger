@@ -6,6 +6,8 @@
 
 [Visual Studio Code](https://code.visualstudio.com/) (VS Code) extension that makes it easy to debug code on a remote host by using a generic way.
 
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=GFV9X2A64ZK3Y)
+
 ## License
 
 [MIT license](https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE)
