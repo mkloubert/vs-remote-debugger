@@ -31,6 +31,8 @@ import OS = require('os');
 import Path = require('path');
 import Net = require('net');
 
+const DEFAULT_FILENAME_FORMAT = 'vsrd_favs_${timestamp}';
+
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
 const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
@@ -940,11 +942,32 @@ export class ConsoleManager {
             if (!file) {
                 // use auto name
 
+                let pattern = result.filenameFormat();
+                if (pattern) {
+                    pattern = ('' + pattern).trim();
+                }
+                if (!pattern) {
+                    pattern = DEFAULT_FILENAME_FORMAT;
+                }
+
+                // process placeholders
+                pattern = pattern.replace('${timestamp}', '([0-9]+)');
+                pattern = pattern.replace('${year}', '([0-9]{4})');
+                pattern = pattern.replace('${month}', '(0[0-9]|1[0-2])');
+                pattern = pattern.replace('${day}', '(0[0-9]|1[0-9]|2[0-9]|3[0-1])');
+                pattern = pattern.replace('${hours}', '(0[0-9]|1[0-9]|2[0-3])');
+                pattern = pattern.replace('${minutes}', '([0-5][0-9])');
+                pattern = pattern.replace('${seconds}', '([0-5][0-9])');
+                pattern = pattern.replace('${timezone}', '([0-9]+)');
+                pattern = pattern.replace('${rand}', '([0-9]+)');
+
+                let regex = new RegExp('/' + pattern + '/');
+
                 let existingFileNames = FS.readdirSync(result.sourceRoot());
                 let existingFiles: { path: string, stats: FS.Stats}[] = [];
                 for (let i = 0; i < existingFileNames.length; i++) {
                     let fileName = existingFileNames[i];
-                    if (!/^(vsrd_favs_)([0-9]+)(\.json)$/i.test(fileName.trim())) {
+                    if (!regex.test(fileName.trim())) {
                         continue;
                     }
 
@@ -1378,6 +1401,15 @@ export class ConsoleManager {
         let favorites = result.favorites();
         let file = match[3].trim();
 
+        let padLeft = (n: number): string => {
+            let s = '' + n;
+            if (n < 10) {
+                s = '0' + s;
+            }
+
+            return s;
+        };
+
         let showError = (err) => {
             //TODO: me.log('[ERROR :: save()]: ' + err);
         };
@@ -1393,18 +1425,19 @@ export class ConsoleManager {
                         baseName = ('' + baseName).trim();
                     }
                     if (!baseName) {
-                        baseName = 'vsrd_favs_${timestamp}';
+                        baseName = DEFAULT_FILENAME_FORMAT;
                     }
 
                     // process placeholders
                     baseName = baseName.replace('${timestamp}', '' + now.getTime());
                     baseName = baseName.replace('${year}', '' + now.getFullYear());
-                    baseName = baseName.replace('${month}', '' + (now.getMonth() + 1));
-                    baseName = baseName.replace('${day}', '' + now.getDate());
-                    baseName = baseName.replace('${hours}', '' + now.getHours());
-                    baseName = baseName.replace('${minutes}', '' + now.getMinutes());
-                    baseName = baseName.replace('${seconds}', '' + now.getSeconds());
+                    baseName = baseName.replace('${month}', '' + padLeft(now.getMonth() + 1));
+                    baseName = baseName.replace('${day}', '' + padLeft(now.getDate()));
+                    baseName = baseName.replace('${hours}', '' + padLeft(now.getHours()));
+                    baseName = baseName.replace('${minutes}', '' + padLeft(now.getMinutes()));
+                    baseName = baseName.replace('${seconds}', '' + padLeft(now.getSeconds()));
                     baseName = baseName.replace('${timezone}', '' + now.getTimezoneOffset());
+                    baseName = baseName.replace('${rand}', '' + Math.floor(Math.random() * 597923979));
 
                     let index: number = -1;
                     let fullPath: string;
