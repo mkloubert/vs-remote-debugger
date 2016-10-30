@@ -1,0 +1,686 @@
+{
+  // RemoteDebuggerThread[]
+  "t": [
+    {
+      "i": 1,
+      "n": "Thread #1"
+    }
+  ],
+  // RemoteDebuggerStackFrame[]
+  "s": [
+    {
+      "i": 1,
+      "ln": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php\\test.php",
+      "f": "/test.php",
+      "fn": "test.php",
+      "l": 31,
+      "n": "MJK\\Diagnostics\\RemoteDebugger->dbg()",
+      // RemoteDebuggerScope[]
+      "s": [
+        {
+          "n": "Current function",
+          "r": 7,
+          // RemoteDebuggerVariable[]
+          "v": [
+            
+            {
+              "n": "$vars",
+              "r": 8,
+              "t": "array",
+              "v": [
+                {
+                  "n": "[a]",
+                  "r": 0,
+                  "t": "string",
+                  "v": "2016-10-26 18:18:48"
+                },
+                {
+                  "n": "[b]",
+                  "r": 0,
+                  "t": "integer",
+                  "v": "1"
+                },
+                {
+                  "n": "[c]",
+                  "r": 0,
+                  "t": "float",
+                  "v": "2.34"
+                },
+                {
+                  "n": "[d]",
+                  "r": 0,
+                  "t": "string",
+                  "v": "Marcel K! Marcel K! Marcel K!"
+                },
+                {
+                  "n": "[e]",
+                  "r": 0,
+                  "t": "string",
+                  "v": "false"
+                },
+                {
+                  "n": "[f]",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "[g]",
+                  "r": 0,
+                  "t": "string",
+                  "v": "true"
+                },
+                {
+                  "n": "[h]",
+                  "r": 9,
+                  "t": "array",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "[h1]",
+                      "r": 0,
+                      "t": "integer",
+                      "v": "0"
+                    },
+                    {
+                      "n": "[h2]",
+                      "r": 0,
+                      "t": "float",
+                      "v": "1.2"
+                    },
+                    {
+                      "fn": "{closure}",
+                      "n": "[h3]",
+                      "r": 10,
+                      "t": "function",
+                      // RemoteDebuggerVariable[]
+                      "v": [
+                        {
+                          "n": "&$A",
+                          "r": 0,
+                          "t": "string",
+                          "v": "(mixed)"
+                        },
+                        {
+                          "n": "$B",
+                          "r": 0,
+                          "t": "string",
+                          "v": "(callable)"
+                        },
+                        {
+                          "n": "[$C]",
+                          "r": 0,
+                          "t": "string",
+                          "v": "(array)"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "on": "stdClass",
+                  "n": "[i]",
+                  "r": 11,
+                  "t": "object",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "$i1",
+                      "r": 0,
+                      "t": "float",
+                      "v": "0.1"
+                    },
+                    {
+                      "n": "$i2",
+                      "r": 0,
+                      "t": "string",
+                      "v": "123"
+                    }
+                  ]
+                },
+                {
+                  "n": "[j]",
+                  "r": 12,
+                  "t": "array",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "[0]",
+                      "r": 0,
+                      "t": "string",
+                      "v": "MK"
+                    },
+                    {
+                      "n": "[1]",
+                      "r": 0,
+                      "t": "string",
+                      "v": "TM"
+                    }
+                  ]
+                },
+                {
+                  "fn": "{closure}",
+                  "n": "[k]",
+                  "r": 13,
+                  "t": "function",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "$a",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    },
+                    {
+                      "n": "$b",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(callable)"
+                    },
+                    {
+                      "n": "[&$c]",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(array)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "n": "Debugger",
+          "r": 1
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "ln": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php\\test.php",
+      "f": "/test.php",
+      "fn": "test.php",
+      "l": 57,
+      "n": "test_function()",
+      "s": [
+        {
+          "n": "Current function",
+          "r": 14,
+          "v": [
+            {
+              "on": "MJK\\Diagnostics\\RemoteDebugger",
+              "n": "$debugger",
+              "r": 15,
+              "t": "object",
+              "v": [
+                {
+                  "n": "$_hostProviders",
+                  "r": 16,
+                  "t": "array",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "fn": "MJK\\Diagnostics\\{closure}",
+                      "n": "[0]",
+                      "r": 17,
+                      "t": "function",
+                      "v": []
+                    }
+                  ]
+                },
+                {
+                  "n": "$App",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$CurrentFunctionStackFrame",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$CurrentFunctionVariable",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$CurrentThread",
+                  "r": 18,
+                  "t": "array",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "[0]",
+                      "r": 0,
+                      "t": "integer",
+                      "v": "1"
+                    },
+                    {
+                      "n": "[1]",
+                      "r": 0,
+                      "t": "string",
+                      "v": "Thread #1"
+                    }
+                  ]
+                },
+                {
+                  "n": "$DebuggerStackFrame",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$DefaultHost",
+                  "r": 0,
+                  "t": "string",
+                  "v": "127.0.0.1"
+                },
+                {
+                  "n": "$DefaultPort",
+                  "r": 0,
+                  "t": "integer",
+                  "v": "5979"
+                },
+                {
+                  "n": "$DefaultTimeout",
+                  "r": 0,
+                  "t": "integer",
+                  "v": "5"
+                },
+                {
+                  "n": "$EntryFilter",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "fn": "{closure}",
+                  "n": "$ErrorHandler",
+                  "r": 19,
+                  "t": "function",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "$type",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    },
+                    {
+                      "n": "$err",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    },
+                    {
+                      "n": "$eventData",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    }
+                  ]
+                },
+                {
+                  "n": "$ScriptRoot",
+                  "r": 0,
+                  "t": "string",
+                  "v": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php"
+                },
+                {
+                  "n": "$TargetClient",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "n": "Debugger",
+          "r": 1
+        }
+      ]
+    },
+    {
+      "i": 3,
+      "ln": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php\\test1.inc.php",
+      "f": "/test1.inc.php",
+      "fn": "test1.inc.php",
+      "l": 13,
+      "n": "MyClass::staticTestMethod()",
+      "s": [
+        {
+          "n": "Current function",
+          "r": 20,
+          "v": [
+            {
+              "on": "MJK\\Diagnostics\\RemoteDebugger",
+              "n": "$debugger",
+              "r": 21,
+              "t": "object",
+              // RemoteDebuggerVariable[]
+              "v": [
+                {
+                  "n": "$_hostProviders",
+                  "r": 22,
+                  "t": "array",
+                  "v": [
+                    {
+                      "fn": "MJK\\Diagnostics\\{closure}",
+                      "n": "[0]",
+                      "r": 23,
+                      "t": "function",
+                      // RemoteDebuggerVariable[]
+                      "v": []
+                    }
+                  ]
+                },
+                {
+                  "n": "$App",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$CurrentFunctionStackFrame",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$CurrentFunctionVariable",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$CurrentThread",
+                  "r": 24,
+                  "t": "array",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "[0]",
+                      "r": 0,
+                      "t": "integer",
+                      "v": "1"
+                    },
+                    {
+                      "n": "[1]",
+                      "r": 0,
+                      "t": "string",
+                      "v": "Thread #1"
+                    }
+                  ]
+                },
+                {
+                  "n": "$DebuggerStackFrame",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "n": "$DefaultHost",
+                  "r": 0,
+                  "t": "string",
+                  "v": "127.0.0.1"
+                },
+                {
+                  "n": "$DefaultPort",
+                  "r": 0,
+                  "t": "integer",
+                  "v": "5979"
+                },
+                {
+                  "n": "$DefaultTimeout",
+                  "r": 0,
+                  "t": "integer",
+                  "v": "5"
+                },
+                {
+                  "n": "$EntryFilter",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                },
+                {
+                  "fn": "{closure}",
+                  "n": "$ErrorHandler",
+                  "r": 25,
+                  "t": "function",
+                  // RemoteDebuggerVariable[]
+                  "v": [
+                    {
+                      "n": "$type",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    },
+                    {
+                      "n": "$err",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    },
+                    {
+                      "n": "$eventData",
+                      "r": 0,
+                      "t": "string",
+                      "v": "(mixed)"
+                    }
+                  ]
+                },
+                {
+                  "n": "$ScriptRoot",
+                  "r": 0,
+                  "t": "string",
+                  "v": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php"
+                },
+                {
+                  "n": "$TargetClient",
+                  "r": 0,
+                  "t": "string",
+                  "v": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "n": "Debugger",
+          "r": 1
+        }
+      ]
+    },
+    {
+      "i": 4,
+      "ln": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php\\test.php",
+      "f": "/test.php",
+      "fn": "test.php",
+      "l": 61,
+      "n": "require",
+      "s": [
+        {
+          "n": "Current function",
+          "r": 26,
+          "v": [
+            {
+              "n": "(arg0)",
+              "r": 0,
+              "t": "string",
+              "v": "M:\\VS Code\\proj\\vs-remote-debugger\\sdk\\php\\test1.inc.php"
+            }
+          ]
+        },
+        {
+          "n": "Debugger",
+          "r": 1
+        }
+      ]
+    }
+  ],
+  // RemoteDebuggerVariable[]
+  "v": [
+    {
+      "n": "$a",
+      "r": 0,
+      "t": "string",
+      "v": "2016-10-26 18:18:48"
+    },
+    {
+      "n": "$b",
+      "r": 0,
+      "t": "integer",
+      "v": "1"
+    },
+    {
+      "n": "$c",
+      "r": 0,
+      "t": "float",
+      "v": "2.34"
+    },
+    {
+      "n": "$d",
+      "r": 0,
+      "t": "string",
+      "v": "Marcel K! Marcel K! Marcel K!"
+    },
+    {
+      "n": "$e",
+      "r": 0,
+      "t": "string",
+      "v": "false"
+    },
+    {
+      "n": "$f",
+      "r": 0,
+      "t": "string",
+      "v": null
+    },
+    {
+      "n": "$g",
+      "r": 0,
+      "t": "string",
+      "v": "true"
+    },
+    {
+      "n": "$h",
+      "r": 2,
+      "t": "array",
+      // RemoteDebuggerVariable[]
+      "v": [
+        {
+          "n": "[h1]",
+          "r": 0,
+          "t": "integer",
+          "v": "0"
+        },
+        {
+          "n": "[h2]",
+          "r": 0,
+          "t": "float",
+          "v": "1.2"
+        },
+        {
+          "fn": "{closure}",
+          "n": "[h3]",
+          "r": 3,
+          "t": "function",
+          // RemoteDebuggerVariable[]
+          "v": [
+            {
+              "n": "&$A",
+              "r": 0,
+              "t": "string",
+              "v": "(mixed)"
+            },
+            {
+              "n": "$B",
+              "r": 0,
+              "t": "string",
+              "v": "(callable)"
+            },
+            {
+              "n": "[$C]",
+              "r": 0,
+              "t": "string",
+              "v": "(array)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "on": "stdClass",
+      "n": "$i",
+      "r": 4,
+      "t": "object",
+      // RemoteDebuggerVariable[]
+      "v": [
+        {
+          "n": "$i1",
+          "r": 0,
+          "t": "float",
+          "v": "0.1"
+        },
+        {
+          "n": "$i2",
+          "r": 0,
+          "t": "string",
+          "v": "123"
+        }
+      ]
+    },
+    {
+      "n": "$j",
+      "r": 5,
+      "t": "array",
+      // RemoteDebuggerVariable[]
+      "v": [
+        {
+          "n": "[0]",
+          "r": 0,
+          "t": "string",
+          "v": "MK"
+        },
+        {
+          "n": "[1]",
+          "r": 0,
+          "t": "string",
+          "v": "TM"
+        }
+      ]
+    },
+    {
+      "fn": "{closure}",
+      "n": "$k",
+      "r": 6,
+      "t": "function",
+      // RemoteDebuggerVariable[]
+      "v": [
+        {
+          "n": "$a",
+          "r": 0,
+          "t": "string",
+          "v": "(mixed)"
+        },
+        {
+          "n": "$b",
+          "r": 0,
+          "t": "string",
+          "v": "(callable)"
+        },
+        {
+          "n": "[&$c]",
+          "r": 0,
+          "t": "string",
+          "v": "(array)"
+        }
+      ]
+    }
+  ]
+}
