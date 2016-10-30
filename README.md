@@ -118,7 +118,7 @@ If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/m
 
 ### Debugger console
 
-If the debugger instance is running, you can use "Debugger console" (CTRL + SHIFT + Y) that provides a lot of handy and useful commands:
+If the debugger instance is running, you can use the "Debugger console" (CTRL + SHIFT + Y) of VS Code which provides a lot of handy and useful commands:
  
 ![Install screenshot 3](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-4.png)
 
@@ -206,7 +206,7 @@ The following commands provide shortcuts for `goto`:
 | `first` | Goto to FIRST message. |
 | `last` | Goto to LAST message. |
 
-If you want to know what index is currently selected, use `current`:
+If you want to know what message is currently selected, use `current`:
 
 ```
 current
@@ -215,21 +215,21 @@ Current index: 2
 
 ##### Search
 
-Use the `find` command to search for a strings inside the "Debugger variables". The following example searches for values that contain `Tanja` and `Kloubert`: 
+Use the `find` command to search for strings inside the "Debugger variables". The following example searches for values that contain `Tanja` and `Kloubert`: 
 
 ```
 find tanja kloubert
 Found 1 variables in entry 2: $D
 ```
 
-Another kind of search is to use regular expression by using `regex` command:
+Another kind of search is to use a regular expression by using `regex` command:
 
 ```
 regex (2016\-01\-)
 Found 1 variables in entry 2: $A
 ```
 
-To jump to the next match, simple use `next`.
+To jump to the next match, simply input `next`.
 
 #### Additional information
 
@@ -256,7 +256,7 @@ Total number of entries: 2
     From:  '::ffff:127.0.0.1:57075' (2016-10-30 14:46:19)
 ```
 
-If you would like to remove information from one or more entries, simple use `unset`:
+If you would like to remove information from one or more entries, simply use `unset`:
 
 | Input | Description |
 | ---- | --------- |
@@ -305,7 +305,7 @@ Examples:
 
 #### Pause the debugger
 
-You can set the debugger in *pause mode*, what means that all message you receive will be dropped instead of adding them to your list.
+You can set the debugger in *pause mode*, what means that all messages you receive will be dropped instead of adding them to your list.
 
 Use the `pause` command to switch to that mode:
 
@@ -372,7 +372,7 @@ disable pause
 Disabled counter and switch to 'pause' mode
 ```
 
-If you simply input `counter` or `counter pause`, the debugger will use the value defined in the *counter* (*configurations* sections) of your *launch.json* file:
+If you simply input `counter` or `counter pause`, the debugger will use the value defined in the *counter* property (*configurations* sections) of your *launch.json* file:
 
 ```json
 {
@@ -422,6 +422,7 @@ Input `favs` to display your current favorites:
 
 ```
 favs
+Total number of favorites: 2
 [1] /test.php (31)
     From:  '::ffff:127.0.0.1:57157' (2016-10-30 15:00:38)
 [3] /test.php (31)
@@ -485,9 +486,9 @@ Loaded 1 entries from 'e:\test\myfavs.json'
 
 ##### Share
 
-You also can share your favorites with other clients and constributors that also have a running instance of the debugger.
+You also can share your favorites with other clients and constributors that have a running instance of the debugger.
 
-The following example sends your favorites to `192.168.0.234:5979` (target MUST NOT be in 'pause' mode, otherwise the entries will be dropped there):
+The following example sends your favorites to `192.168.0.234:5979` (target MUST NOT be in 'pause' mode, otherwise the entries will be dropped there!):
 
 ```
 send 192.168.0.234 5979
@@ -495,7 +496,7 @@ send 192.168.0.234 5979
 Send favorites to '192.168.0.234:5979'
 ```
 
-Another way to do this is, to define a list of friends in your *launch.json* (*friends* property of *configurations* section):
+Another way to do this, is to define a list of friends in your *launch.json* (*friends* property of *configurations* section):
 
 ```json
 {
