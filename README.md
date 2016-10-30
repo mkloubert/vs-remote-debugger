@@ -384,10 +384,19 @@ Each entry has the following format:
 
 *{NAME}* is optional, but it is recommed to define that value explicitly.
 
-Use the `share` command, if you want to send your favorites to *yvonne* and *tanja*:
+Now you can use `share` command, if you want to send your favorites to *yvonne* and *tanja*, e.g.:
 
 ```
 share yvonne tanja
 Send favorites to 'yvonne' (192.168.0.102:1781)
 Send favorites to 'tanja' (192.168.0.101:5979)
 ```
+
+`friends` displays the list of your friends: 
+
+```
+[1] yvonne => 192.168.0.102:1781
+[2] marcel => 192.168.0.100:23979
+[3] tanja => 192.168.0.101:5979
+```
+
