@@ -115,3 +115,73 @@ Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/
 If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/test.php) script from the PHP SDK, a possible message can look like this:
 
 * [example.json](https://github.com/mkloubert/vs-remote-debugger/blob/master/example.json)
+
+### Debugger console
+
+If the debugger instance is running, you can use "Debugger console" (CTRL + SHIFT + Y) that provides a lot of handy and useful commands:
+ 
+![Install screenshot 3](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-4.png)
+
+Input `?` inside your "command field" if you would like to display all available commands that are provided by the debugger.
+
+#### Display messages
+
+Input `list` to display the first 50 message:
+
+```
+Total number of entries: 12
+[1] /test.php (31)
+    From:  '::ffff:127.0.0.1:56843' (2016-10-30 14:29:40)
+[2] /test.php (35)
+    From:  '::ffff:127.0.0.1:56844' (2016-10-30 14:29:40)
+[3] /test.php (31)
+    From:  '::ffff:127.0.0.1:56847' (2016-10-30 14:29:41)
+[4] /test.php (35)
+    From:  '::ffff:127.0.0.1:56848' (2016-10-30 14:29:41)
+[5] /test.php (31)
+    From:  '::ffff:127.0.0.1:56850' (2016-10-30 14:29:42)
+[6] /test.php (35)
+    From:  '::ffff:127.0.0.1:56851' (2016-10-30 14:29:42)
+[7] /test.php (31)
+    From:  '::ffff:127.0.0.1:56853' (2016-10-30 14:29:43)
+[8] /test.php (35)
+    From:  '::ffff:127.0.0.1:56854' (2016-10-30 14:29:43)
+[9] /test.php (31)
+    From:  '::ffff:127.0.0.1:56856' (2016-10-30 14:29:43)
+[10] /test.php (35)
+     From:  '::ffff:127.0.0.1:56857' (2016-10-30 14:29:43)
+[11] /test.php (31)
+     From:  '::ffff:127.0.0.1:56859' (2016-10-30 14:29:44)
+[12] /test.php (35)
+     From:  '::ffff:127.0.0.1:56860' (2016-10-30 14:29:44)
+```
+
+To skip the first 8 entries, e.g., you can input `list 8`:
+
+```
+Total number of entries: 12
+[9] /test.php (31)
+    From:  '::ffff:127.0.0.1:56856' (2016-10-30 14:29:43)
+[10] /test.php (35)
+     From:  '::ffff:127.0.0.1:56857' (2016-10-30 14:29:43)
+[11] /test.php (31)
+     From:  '::ffff:127.0.0.1:56859' (2016-10-30 14:29:44)
+[12] /test.php (35)
+     From:  '::ffff:127.0.0.1:56860' (2016-10-30 14:29:44)
+```
+
+If you want to display the first 5 entries only, simply input `list 0 5`:
+
+```
+Total number of entries: 12
+[1] /test.php (31)
+    From:  '::ffff:127.0.0.1:56843' (2016-10-30 14:29:40)
+[2] /test.php (35)
+    From:  '::ffff:127.0.0.1:56844' (2016-10-30 14:29:40)
+[3] /test.php (31)
+    From:  '::ffff:127.0.0.1:56847' (2016-10-30 14:29:41)
+[4] /test.php (35)
+    From:  '::ffff:127.0.0.1:56848' (2016-10-30 14:29:41)
+[5] /test.php (31)
+    From:  '::ffff:127.0.0.1:56850' (2016-10-30 14:29:42)
+```
