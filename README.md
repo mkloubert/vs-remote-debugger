@@ -424,3 +424,68 @@ Send favorites to 'tanja' (192.168.0.101:5979)
 [3] tanja => 192.168.0.101:5979
 ```
 
+##### Shortcuts
+
+| Input | Description |
+| ---- | --------- |
+| `all` | Marks all messages as favorites. |
+| `none` | Clear the list of favorites. |
+| `trim` | Removes all entries that are NOT marked as favorites. |
+
+#### Other commands
+
+##### clear
+
+Removes all loaded messages and favorites.
+
+```
+clear
+Cleared
+```
+
+##### nodebug
+
+Switches the debugger itself to *NON debug mode*.
+
+```
+clear
+Cleared
+```
+
+##### debug
+
+Switches the debugger itself to *debug mode*.
+
+```
+debug
+Debug mode
+```
+
+##### me
+
+Lists all network interfaces of your machine.
+
+```
+me
+[1] (IPv4) 192.168.0.100 / 255.255.255.0 (01:02:03:04:05:06)
+```
+
+Format of an entry: `(ADRESS-FAMILY) (ADDRESS) / (NET-MASK) (MAC-ADDRESS)`
+
+##### nodebug
+
+Switches the debugger itself to *NON debug mode*.
+
+```
+nodebug
+Debug mode leaved
+```
+
+##### refresh
+
+Refreshes the view of the current selected message.
+
+```
+refresh
+New index: 1
+```
