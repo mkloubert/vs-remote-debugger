@@ -41,6 +41,7 @@ const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
 const REGEX_CMD_LOG = /^(log)([\s])(.*)$/i;
+const REGEX_CMD_NEW = /^(new)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_REGEX = /^(regex)([\s]?)(.*)$/i;
 const REGEX_CMD_RESET = /^(reset)([\s]*)(pause)?$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
@@ -728,6 +729,7 @@ export class ConsoleManager {
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
            output += ' log $MESSAGE                                | Adds a log message to the current entry\n';
            output += ' me                                          | Lists all network interfaces of that machine\n';
+           output += ' new [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]    | Lists a number of entries (backward)\n';
            output += ' next                                        | Continues a "Debugger" variable search\n';
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
            output += ' none                                        | Clears all favorites\n';
@@ -741,6 +743,7 @@ export class ConsoleManager {
            output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
            output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
            output += ' share [$FRIEND]*                            | Sends your favorites to one or more friend\n';
+           output += ' sort                                        | Sort all entries by timestamp\n';
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
            output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
@@ -1082,6 +1085,64 @@ export class ConsoleManager {
         }
 
         result.sendResponse();
+    }
+
+    /**
+     * 'new' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying manager.
+     */
+    protected cmd_new(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let entries = result.entries();
+
+        let itemsToSkip: number = 0;
+        if ('' != match[3]) {
+            itemsToSkip = parseInt(match[3]);
+        }
+
+        let itemsToDisplay: number = 50;
+        if ('' != match[5]) {
+            itemsToDisplay = parseInt(match[5]);
+        }
+
+        let newIndex = parseInt(match[3].trim());
+
+        let output: string = '';
+
+        let numberOfDisplayedItems = 0;
+        for (let i = 0; i < itemsToDisplay; i++) {
+            let index = entries.length - (itemsToSkip + i) - 1;
+            if (index < 0) {
+                // no more items to display
+                break;
+            }
+
+            let entry = entries[index];
+            if (!entry) {
+                break;
+            }
+
+            ++numberOfDisplayedItems;
+            output += me.toListEntryString(entry, index + 1) + "\n";
+        }
+
+        output += "\t";
+
+        if (numberOfDisplayedItems > 0) {
+            result.body(`Total number of entries: ${entries.length}`);
+        }
+        else {
+            output = null;
+            result.body("No items found!");
+        }
+
+        result.sendResponse();
+        
+        if (output) {
+            result.write(output);
+        }
     }
 
     /**
@@ -1580,6 +1641,40 @@ export class ConsoleManager {
     }
 
     /**
+     * 'sort' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_sort(result: ExecuteCommandResult, me: ConsoleManager): void {
+        let entries = result.entries().sort((x, y) => {
+            let sortX = me.toDateString(x.__time);
+            let sortY = me.toDateString(y.__time);
+
+            if (sortX > sortY) {
+                return 1;
+            }
+            
+            if (sortX < sortY) {
+                return -1;
+            }
+
+            return 0;
+        });
+
+        result.entries(entries);
+
+        if (entries.length > 0) {
+            result.body(`Sorted ${entries.length} entries by timestamp`);
+        }
+        else {
+            result.body('Nothing sorted!');
+        }
+
+        result.sendResponse();
+    }
+
+    /**
      * 'state' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -1816,6 +1911,9 @@ export class ConsoleManager {
         else if ('refresh' == lowerExpr) {
             action = this.cmd_refresh;
         }
+        else if ('sort' == lowerExpr) {
+            action = this.cmd_sort;
+        }
         else if ('state' == lowerExpr) {
             action = this.cmd_state;
         }
@@ -1877,6 +1975,11 @@ export class ConsoleManager {
             // log
             action = toRegexAction(this.cmd_log,
                                    REGEX_CMD_LOG, trimmedExpr);
+        }
+        else if (REGEX_CMD_NEW.test(trimmedExpr)) {
+            // new
+            action = toRegexAction(this.cmd_new,
+                                   REGEX_CMD_NEW, trimmedExpr);
         }
         else if (REGEX_CMD_REGEX.test(trimmedExpr)) {
             // regex

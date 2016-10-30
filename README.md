@@ -135,6 +135,7 @@ Input `?` inside your "command field" if you would like to display all available
 Input `list` to display the first 50 messages:
 
 ```
+list
 Total number of entries: 12
 [1] /test.php (31)
     From:  '::ffff:127.0.0.1:56843' (2016-10-30 14:29:40)
@@ -165,6 +166,7 @@ Total number of entries: 12
 To skip the first 8 entries, e.g., you can input `list 8`:
 
 ```
+list 8
 Total number of entries: 12
 [9] /test.php (31)
     From:  '::ffff:127.0.0.1:56856' (2016-10-30 14:29:43)
@@ -179,6 +181,7 @@ Total number of entries: 12
 If you want to display the entries 3-7 only, simply input `list 2 5` (skip the first `2` entries and display `5` elements):
 
 ```
+list 2 5
 Total number of entries: 12
 [3] /test.php (31)
     From:  '::ffff:127.0.0.1:56847' (2016-10-30 14:29:41)
@@ -190,6 +193,59 @@ Total number of entries: 12
     From:  '::ffff:127.0.0.1:56851' (2016-10-30 14:29:42)
 [7] /test.php (31)
     From:  '::ffff:127.0.0.1:56853' (2016-10-30 14:29:43)
+```
+
+You can also do this in the other direction by using `new` command with the same syntax as `list`:
+
+```
+new
+Total number of entries: 12
+[12] /test.php (35)
+     From:  '::ffff:127.0.0.1:56860' (2016-10-30 14:29:44)
+[11] /test.php (31)
+     From:  '::ffff:127.0.0.1:56859' (2016-10-30 14:29:44)
+[10] /test.php (35)
+     From:  '::ffff:127.0.0.1:56857' (2016-10-30 14:29:43)
+[9] /test.php (31)
+    From:  '::ffff:127.0.0.1:56856' (2016-10-30 14:29:43)
+[8] /test.php (35)
+    From:  '::ffff:127.0.0.1:56854' (2016-10-30 14:29:43)
+[7] /test.php (31)
+    From:  '::ffff:127.0.0.1:56853' (2016-10-30 14:29:43)
+[6] /test.php (35)
+    From:  '::ffff:127.0.0.1:56851' (2016-10-30 14:29:42)
+[5] /test.php (31)
+    From:  '::ffff:127.0.0.1:56850' (2016-10-30 14:29:42)
+[4] /test.php (35)
+    From:  '::ffff:127.0.0.1:56848' (2016-10-30 14:29:41)
+[3] /test.php (31)
+    From:  '::ffff:127.0.0.1:56847' (2016-10-30 14:29:41)
+[2] /test.php (35)
+    From:  '::ffff:127.0.0.1:56844' (2016-10-30 14:29:40)
+[1] /test.php (31)
+    From:  '::ffff:127.0.0.1:56843' (2016-10-30 14:29:40)
+
+new 8
+[4] /test.php (35)
+    From:  '::ffff:127.0.0.1:56848' (2016-10-30 14:29:41)
+[3] /test.php (31)
+    From:  '::ffff:127.0.0.1:56847' (2016-10-30 14:29:41)
+[2] /test.php (35)
+    From:  '::ffff:127.0.0.1:56844' (2016-10-30 14:29:40)
+[1] /test.php (31)
+    From:  '::ffff:127.0.0.1:56843' (2016-10-30 14:29:40)
+
+new 2 5
+[10] /test.php (35)
+     From:  '::ffff:127.0.0.1:56857' (2016-10-30 14:29:43)
+[9] /test.php (31)
+    From:  '::ffff:127.0.0.1:56856' (2016-10-30 14:29:43)
+[8] /test.php (35)
+    From:  '::ffff:127.0.0.1:56854' (2016-10-30 14:29:43)
+[7] /test.php (31)
+    From:  '::ffff:127.0.0.1:56853' (2016-10-30 14:29:43)
+[6] /test.php (35)
+    From:  '::ffff:127.0.0.1:56851' (2016-10-30 14:29:42)
 ```
 
 #### Jump between messages / search
@@ -602,6 +658,15 @@ Refreshes the view of the current selected message.
 ```
 refresh
 New index: 1
+```
+
+##### sort
+
+Sorts all messages.
+
+```
+sort
+Sorted 2 entries by timestamp
 ```
 
 ##### wait
