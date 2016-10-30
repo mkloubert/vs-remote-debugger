@@ -550,3 +550,12 @@ Refreshes the view of the current selected message.
 refresh
 New index: 1
 ```
+
+##### wait
+
+Starts waiting for a new message.
+
+```
+wait
+New index: 1
+```
