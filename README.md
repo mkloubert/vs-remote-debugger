@@ -527,7 +527,7 @@ As you can see, you are able to use placeholders:
 | `$hours` | The hours between `00` and `23`. |
 | `$minutes` | The minutes between `00` and `59`. |
 | `$month` | The month between `01` and `12`. |
-| `$random` | The random number between `0` and `239795979`. |
+| `$random` | The random number between `0` and `597923979`. |
 | `$seconds` | The seconds between `00` and `59`. |
 | `$timestamp` | The UNIX timestamp. |
 | `$timezone` | The timezone offset in minutes. |
