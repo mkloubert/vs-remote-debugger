@@ -1,149 +1,153 @@
 {
-    "name": "vs-remote-debugger",
-    "displayName": "Generic Remote Debugger",
-    "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
-    "icon": "icon.png",
-    "version": "0.27.4",
-    "publisher": "mkloubert",
-    "engines": {
-        "vscode": "^1.5.0"
-    },
-    "categories": [
-        "Debuggers"
-    ],
-    "activationEvents": [
-        "onCommand:extension.remoteDebugger"
-    ],
-    "main": "./out/src/extension",
-    "contributes": {
-        "debuggers": [{
-			"type": "vs-remote-debugger",
-			"label": "Generic Remote Debugger",
-
-			"program": "./out/src/debugger.js",
-			"runtime": "node",
-
-			"configurationAttributes": {
-				"launch": {
-					"required": [ "localSourceRoot" ],
-					"properties": { 
-                        "apps": {
-                            "type": "array",
-                            "description": "The app name(s)."
-                        },
-                        "bigStepBack": {
-                            "type": "number",
-                            "description": "Size of a big step (back)."
-                        },
-                        "bigStepForward": {
-                            "type": "number",
-                            "description": "Size of a big step (forward)."
-                        },
-                        "clients": {
-                            "type": "array",
-                            "description": "The custom name(s) of the client(s) where the debugger runs."
-                        },
-                        "counter": {
-                            "type": "number",
-                            "description": "The initial counter value."
-                        },
-                        "filenameFormat": {
-                            "type": "string",
-                            "description": "The format that is used to generate names for message files."
-                        },
-                        "friends": {
-                            "type": "array",
-                            "description": "List of friends and their target adresses."
-                        },
-                        "isDebug": {
-                            "type": "boolean",
-                            "description": "Defines if the debugger should start in debug mode or not."
-                        },
-                        "isPaused": {
-                            "type": "boolean",
-                            "description": "Defines if the debugger starts paused or not."
-                        },
-                        "localSourceRoot": {
-                            "type": "string",
-                            "description": "The root path of the local source."
-                        },
-                        "maxMessageSize": {
-                            "type": "number",
-                            "description": "The maximum size in bytes a debug entry can have."
-                        },
-                        "nick": {
-                            "type": "string",
-                            "description": "Your (nick) name."
-                        },
-                        "plugins": {
-                            "type": "array",
-                            "description": "List of plugins to load."
-                        },
-                        "port": {
-                            "type": "number",
-                            "description": "The custom TCP debugger on what the debugger listens."
-                        }
-                    }
-				}
-			},
-
-			"initialConfigurations": [
-				{
-					"name": "Generic Remote Debugger",
-					"type": "vs-remote-debugger",
-					"request": "launch",
-					"apps": [],
-                    "bigStepBack": 10,
-                    "bigStepForward": 10,
-                    "clients": [],
-                    "filenameFormat": "vsrd_favs_${year}${month}${day}_${hours}${minutes}${seconds}",
-                    "localSourceRoot": "${workspaceRoot}",
-                    "maxMessageSize": 16777215,
-                    "plugins": [ "gzip" ],
-					"port": 5979
-				}
-			]
-		}]
-    },
-    "scripts": {
-        "vscode:prepublish": "tsc -p ./",
-        "compile": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install"
-    },
-    "dependencies": {
-        "vscode-debugadapter": "^1.11.0",
-		"vscode-debugprotocol": "^1.11.0"
-    },
-    "devDependencies": {
-        "typescript": "^2.0.3",
-        "vscode": "^1.0.0",
-        "mocha": "^2.3.3",
-        "vscode-debugadapter-testsupport": "^1.11.0",
-        "@types/node": "^6.0.40",
-        "@types/mocha": "^2.2.32"
-    },
-    "keywords": [
-        "PHP",
-        "TCP",
-        "Debugger",
-        "Debugging",
-        "Remote"
-    ],
-    "author": {
-        "name": "Marcel Joachim Kloubert",
-        "email": "marcel.kloubert@gmx.net"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/mkloubert/vs-remote-debugger"
-    },
-    "bugs": {
-        "url": "https://github.com/mkloubert/vs-remote-debugger/issues"
-    },
-    "homepage": "https://github.com/mkloubert/vs-remote-debugger",
-    "readmeFilename": "README.md",
-    "license": {
-        "type": "MIT",
-        "url": "https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE"
-    }
+  "name": "vs-remote-debugger",
+  "displayName": "Generic Remote Debugger",
+  "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
+  "icon": "icon.png",
+  "version": "0.28.0",
+  "publisher": "mkloubert",
+  "engines": {
+    "vscode": "^1.5.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onCommand:extension.remoteDebugger"
+  ],
+  "main": "./out/src/extension",
+  "contributes": {
+    "debuggers": [
+      {
+        "type": "vs-remote-debugger",
+        "label": "Generic Remote Debugger",
+        "program": "./out/src/debugger.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "localSourceRoot"
+            ],
+            "properties": {
+              "apps": {
+                "type": "array",
+                "description": "The app name(s)."
+              },
+              "bigStepBack": {
+                "type": "number",
+                "description": "Size of a big step (back)."
+              },
+              "bigStepForward": {
+                "type": "number",
+                "description": "Size of a big step (forward)."
+              },
+              "clients": {
+                "type": "array",
+                "description": "The custom name(s) of the client(s) where the debugger runs."
+              },
+              "counter": {
+                "type": "number",
+                "description": "The initial counter value."
+              },
+              "filenameFormat": {
+                "type": "string",
+                "description": "The format that is used to generate names for message files."
+              },
+              "friends": {
+                "type": "array",
+                "description": "List of friends and their target adresses."
+              },
+              "isDebug": {
+                "type": "boolean",
+                "description": "Defines if the debugger should start in debug mode or not."
+              },
+              "isPaused": {
+                "type": "boolean",
+                "description": "Defines if the debugger starts paused or not."
+              },
+              "localSourceRoot": {
+                "type": "string",
+                "description": "The root path of the local source."
+              },
+              "maxMessageSize": {
+                "type": "number",
+                "description": "The maximum size in bytes a debug entry can have."
+              },
+              "nick": {
+                "type": "string",
+                "description": "Your (nick) name."
+              },
+              "plugins": {
+                "type": "array",
+                "description": "List of plugins to load."
+              },
+              "port": {
+                "type": "number",
+                "description": "The custom TCP debugger on what the debugger listens."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "name": "Generic Remote Debugger",
+            "type": "vs-remote-debugger",
+            "request": "launch",
+            "apps": [],
+            "bigStepBack": 10,
+            "bigStepForward": 10,
+            "clients": [],
+            "filenameFormat": "vsrd_favs_${year}${month}${day}_${hours}${minutes}${seconds}",
+            "localSourceRoot": "${workspaceRoot}",
+            "maxMessageSize": 16777215,
+            "plugins": [
+              "gzip"
+            ],
+            "port": 5979
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./",
+    "compile": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install"
+  },
+  "dependencies": {
+    "opn": "^4.0.2",
+    "vscode-debugadapter": "^1.11.0",
+    "vscode-debugprotocol": "^1.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^2.0.3",
+    "vscode": "^1.0.0",
+    "mocha": "^2.3.3",
+    "vscode-debugadapter-testsupport": "^1.11.0",
+    "@types/node": "^6.0.40",
+    "@types/mocha": "^2.2.32"
+  },
+  "keywords": [
+    "PHP",
+    "TCP",
+    "Debugger",
+    "Debugging",
+    "Remote"
+  ],
+  "author": {
+    "name": "Marcel Joachim Kloubert",
+    "email": "marcel.kloubert@gmx.net"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mkloubert/vs-remote-debugger"
+  },
+  "bugs": {
+    "url": "https://github.com/mkloubert/vs-remote-debugger/issues"
+  },
+  "homepage": "https://github.com/mkloubert/vs-remote-debugger",
+  "readmeFilename": "README.md",
+  "license": {
+    "type": "MIT",
+    "url": "https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE"
+  }
 }

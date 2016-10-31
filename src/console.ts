@@ -53,6 +53,8 @@ const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
 const REGEX_CMD_TEST = /^(test)([\s]?)(.*)$/i;  //TODO: test code
 const REGEX_CMD_UNSET = /^(unset)([\s]?)(.*)$/i;
 
+const URL_PROJECT_GITHUB = 'https://github.com/mkloubert/vs-remote-debugger';
+
 export interface ExecuteCommandResponseBody {
     /** The number of indexed child variables.
         The client can use this optional information to present the variables in a paged UI and fetch them in chunks.
@@ -691,6 +693,25 @@ export class ConsoleManager {
     }
 
     /**
+     * 'github' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_github(result: ExecuteCommandResult): void {
+        try {
+            const opn = require('opn');
+            opn(URL_PROJECT_GITHUB);
+
+            result.body(`Opening project page on GitHub (${URL_PROJECT_GITHUB})...`);
+        }   
+        catch (e) {
+            result.body(`[ERROR] Could not open URL '${URL_PROJECT_GITHUB}': ` + e);
+        }   
+
+        result.sendResponse();
+    }
+
+    /**
      * 'goto' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -729,6 +750,7 @@ export class ConsoleManager {
            output += ' friends                                     | Displays the list of friends\n';
            output += ' first                                       | Jumps to first item\n';
            output += ' find [$EXPR]                                | Starts a search for an expression inside the "Debugger" variables\n';
+           output += ' github                                      | Opens the project page on GitHub\n';
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
            output += ' history [$INDEXES]                          | List the logs of one or more entry\n';
            output += ' last                                        | Jumps to last entry\n';
@@ -1919,7 +1941,10 @@ export class ConsoleManager {
         let trimmedExpr = expr.trim();
         let lowerExpr = trimmedExpr.toLowerCase();
 
-        if ('+' == lowerExpr) {
+        if ('?' == lowerExpr) {
+            action = this.cmd_help;
+        }
+        else if ('+' == lowerExpr) {
             action = this.cmd_next;
         }
         else if ('-' == lowerExpr) {
@@ -1949,8 +1974,8 @@ export class ConsoleManager {
         else if ('friends' == lowerExpr) {
             action = this.cmd_friends;
         }
-        else if ('help' == lowerExpr || '?' == lowerExpr) {
-            action = this.cmd_help;
+        else if ('github' == lowerExpr) {
+            action = this.cmd_github;
         }
         else if ('last' == lowerExpr) {
             action = this.cmd_last;
