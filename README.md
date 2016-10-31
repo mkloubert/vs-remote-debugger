@@ -16,7 +16,7 @@
 
 In many scenarios you are not able to install debuggers like [XDebug](https://xdebug.org/).
 
-Another (additional) reason could be that you and your constributors work on the same server for different reasons.
+Another (additional) reason could be, that you and your constributors work on the same server for different reasons.
 
 This is why you need a simple way to debug your code in VS Code on many systems with an optional list of constributors and the possibility to send data over a TCP socket to you.
 
@@ -26,7 +26,7 @@ The extension listens on a TCP port and waits for binary packages (debug message
 
 The system / server you would like to debug has to send these information to your debugger instance when it is executed.
 
-The extension stores these information and makes it possible to switch between all recived debug messages.
+The extension stores these information and makes it possible to switch between all received debug messages.
 
 ![Install screenshot 3](https://raw.githubusercontent.com/mkloubert/vs-remote-debugger/master/img/readme-ss-3.png)
 
@@ -61,7 +61,6 @@ If you look at the [example code](https://github.com/mkloubert/vs-remote-debugge
 ```php
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
 $debugger->addHost("my.remote.host.or.ip", 23979);
-
 
 // compress JSON data with GZIP
 // 
@@ -106,7 +105,7 @@ let json = binaryPackage.toString('utf8',
 let debugMessage: RemoteDebuggerEntry = JSON.parse(json);
 ```
 
-Look at the following interfaces in the [debugger.ts](https://github.com/mkloubert/vs-remote-debugger/blob/master/src/debugger.ts) to get an idea how a message is structured:
+Look at the following interfaces in the [contracts.ts](https://github.com/mkloubert/vs-remote-debugger/blob/master/src/contracts.ts) to get an idea how a message is structured:
 
 | Name | Description |
 | ---- | --------- |
@@ -263,10 +262,10 @@ The following commands provide shortcuts for `goto`:
 
 | Name | Description |
 | ---- | --------- |
-| `+` | Goto to next message. |
-| `-` | Goto to previous message. |
-| `first` | Goto to FIRST message. |
-| `last` | Goto to LAST message. |
+| `+` | Go to next message. |
+| `-` | Go to previous message. |
+| `first` | Go to FIRST message. |
+| `last` | Go to LAST message. |
 
 If you want to know what message is currently selected, use `current`:
 
@@ -277,11 +276,11 @@ Current index: 2
 
 ##### Search
 
-Use the `find` command to search for strings inside the "Debugger variables". The following example searches for values that contain `Tanja` and `Kloubert`: 
+Use the `find` command to search for strings inside the "Debugger variables". The following example searches for values that contain `Tanja` AND `Kloubert`: 
 
 ```
 find tanja kloubert
-Found 1 variables in entry 2: $D
+Found 2 variables in entry 2: $MK,$TM
 ```
 
 Another kind of search is to use a regular expression by using `regex` command:
@@ -306,7 +305,7 @@ set Hello I am a note for second entry!
 Set information for 2: Hello I am a note for second entry!
 ```
 
-Now you see that note in the list of message:
+Now you see can that note in the list of messages:
 
 ```
 list
@@ -527,7 +526,7 @@ As you can see, you are able to use placeholders:
 | `$hours` | The hours between `00` and `23`. |
 | `$minutes` | The minutes between `00` and `59`. |
 | `$month` | The month between `01` and `12`. |
-| `$random` | The random number between `0` and `597923979`. |
+| `$rand` | The random number between `0` and `597923979`. |
 | `$seconds` | The seconds between `00` and `59`. |
 | `$timestamp` | The UNIX timestamp. |
 | `$timezone` | The timezone offset in minutes. |
@@ -542,7 +541,7 @@ save e:\test\myfavs.json
 Saved favorites to 'e:\test\myfavs.json'
 ```
 
-The first execution uses as relative path by using the value from *localSourceRoot* property (*configurations* section) of your *launch.json* file:
+The first execution uses a relative path by using the value from *localSourceRoot* property (*configurations* section) of your *launch.json* file as base/root directory:
 
 ```json
 {
