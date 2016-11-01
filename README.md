@@ -89,8 +89,8 @@ The implementation of such a debugger message is quite simple.
 The first 4 bytes store the length of the JSON data. It represents an unsinged 32-bit value in little endian order. In [Node.js](https://nodejs.org/en/) it looks like this:
 
 ```typescript
-// 'debuggerMessage' is a Buffer object
-let jsonLength = debuggerMessage.readUInt32LE(0);
+// 'binaryPackage' is a Buffer object
+let jsonLength = binaryPackage.readUInt32LE(0);
 ```
 
 The rest contains the JSON data with the debug information:
