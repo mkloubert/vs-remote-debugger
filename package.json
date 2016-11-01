@@ -3,7 +3,7 @@
   "displayName": "Generic Remote Debugger",
   "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
   "icon": "icon.png",
-  "version": "0.29.2",
+  "version": "1.0.0",
   "publisher": "mkloubert",
   "engines": {
     "vscode": "^1.5.0"
@@ -129,8 +129,8 @@
   "keywords": [
     "PHP",
     "TCP",
-    "Debugger",
-    "Debugging",
+    "General",
+    "Generic",
     "Remote"
   ],
   "author": {

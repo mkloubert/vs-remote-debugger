@@ -105,7 +105,9 @@ const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
 const REGEX_CMD_TEST = /^(test)([\s]?)(.*)$/i;  //TODO: test code
 const REGEX_CMD_UNSET = /^(unset)([\s]?)(.*)$/i;
 
+const URL_PAYPAL_DONATE = 'https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=GFV9X2A64ZK3Y';
 const URL_PROJECT_GITHUB = 'https://github.com/mkloubert/vs-remote-debugger';
+const URL_TWITTER = 'https://twitter.com/mjkloubert';
 
 export interface ExecuteCommandResponseBody {
     /** The number of indexed child variables.
@@ -261,6 +263,52 @@ export class ConsoleManager {
      */
     constructor(session: vsrd_contracts.DebuggerContext) {
         this._context = session;
+    }
+
+    /**
+     * 'about' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_about(result: ExecuteCommandResult): void {
+        // version
+        let appVersion: string;
+        let displayName: string;
+        try {
+             let packageFile = JSON.parse(FS.readFileSync(Path.join(__dirname, '../../package.json'), 'utf8'));
+
+             appVersion = packageFile.version;
+             displayName = packageFile.displayName;
+        }
+        catch (e) {
+            // ignore
+        }
+
+        if (appVersion) {
+            appVersion = ' v' + ('' + appVersion).trim();
+        }
+        else {
+            appVersion = '';
+        }
+
+        if (!displayName) {
+            displayName = 'Generic Remote Debugger';
+        }
+
+        let firstLine = `${displayName} (vs-remote-debugger)${appVersion}`;
+        let secondLine = '='.repeat(firstLine.length + 5);
+
+        let output = `\n${firstLine}\n`;
+        output += `${secondLine}\n`;
+        output += 'Created by Marcel Joachim Kloubert <marcel.kloubert@gmx.net>\n';
+        output += '\n';
+        output += 'Twitter: @mjkloubert\n';
+        output += 'GitHub: https://github.com/mkloubert\n';
+
+        result.writeLine(output);
+
+        result.body(Path.join(__dirname, '../../package.json'));
+        result.sendResponse();
     }
 
     /**
@@ -481,6 +529,25 @@ export class ConsoleManager {
         result.isPaused(isPaused);
 
         result.body('Disabled counter' + suffix);
+        result.sendResponse();
+    }
+
+    /**
+     * 'donate' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_donate(result: ExecuteCommandResult): void {
+        try {
+            const opn = require('opn');
+            opn(URL_PAYPAL_DONATE);
+
+            result.body(`Opening donation page on PayPal (${URL_PAYPAL_DONATE})...`);
+        }
+        catch (e) {
+            result.body('Could not open donation page! Try opening the following url manually: ' + URL_PAYPAL_DONATE);
+        }
+
         result.sendResponse();
     }
 
@@ -853,6 +920,7 @@ export class ConsoleManager {
            output += ' ?                                           | Shows that help screen\n';
            output += ' +                                           | Goes to next entry\n';
            output += ' -                                           | Goes to previous entry\n';
+           output += ' about                                       | Displays information about the plugin and the author\n';
            output += ' add [$INDEXES]                              | Adds the current or specific entries as favorites\n';
            output += ' all                                         | Adds all entries as favorites\n';
            output += ' clear                                       | Removes all loaded entries and favorites\n';
@@ -861,6 +929,7 @@ export class ConsoleManager {
            output += ' current                                     | Displays current index\n';
            output += ' debug                                       | Runs debugger itself in "debug mode"\n';
            output += ' disable [pause]                             | Disables the counter and disables "pause mode" by default\n';
+           output += ' donate                                      | If you like that extension, you can send me a donation via PayPal :-)\n';
            output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
            output += ' favs                                        | Lists all favorites\n';
            output += ' find [$EXPR]                                | Starts a search for an expression inside the "Debugger" variables\n';
@@ -893,6 +962,7 @@ export class ConsoleManager {
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
            output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
+           output += ' twitter                                     | Opens by twitter page\n';
            output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
            output += ' wait                                        | Starts waiting for an entry\n';
             
@@ -1959,6 +2029,25 @@ export class ConsoleManager {
     }
 
     /**
+     * 'twitter' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_twitter(result: ExecuteCommandResult): void {
+        try {
+            const opn = require('opn');
+            opn(URL_TWITTER);
+
+            result.body(`Opening Twitter page (${URL_TWITTER})...`);
+        }
+        catch (e) {
+            result.body('Could not open Twitter page! Try opening the following url manually: ' + URL_TWITTER);
+        }
+
+        result.sendResponse();
+    }
+
+    /**
      * 'unset' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -2068,6 +2157,9 @@ export class ConsoleManager {
         else if ('-' == lowerExpr) {
             action = this.cmd_prev;
         }
+        else if ('about' == lowerExpr) {
+            action = this.cmd_about;
+        }
         else if ('all' == lowerExpr) {
             action = this.cmd_all;
         }
@@ -2082,6 +2174,10 @@ export class ConsoleManager {
         }
         else if ('debug' == lowerExpr) {
             action = this.cmd_debug;
+        }
+        else if ('donate' == lowerExpr ||
+                 'paypal' == lowerExpr) {
+            action = this.cmd_donate;
         }
         else if ('favs' == lowerExpr) {
             action = this.cmd_favs;
@@ -2127,6 +2223,9 @@ export class ConsoleManager {
         }
         else if ('trim' == lowerExpr) {
             action = this.cmd_trim;
+        }
+        else if ('twitter' == lowerExpr) {
+            action = this.cmd_twitter;
         }
         else if ('wait' == lowerExpr) {
             action = this.cmd_wait;
