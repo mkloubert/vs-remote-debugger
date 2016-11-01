@@ -94,6 +94,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _plugins: vsrd_contracts.DebuggerPluginEntry[];
     /**
+     * Stores the port the server is currently running on.
+     */
+    protected _port: number;
+    /**
      * The current server.
      */
     protected _server: Net.Server;
@@ -435,6 +439,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             friends: () => me._friends,
             nick: () => nickname,
             plugins: () => me._plugins,
+            port: () => me._port,
             session: me,
         };
 
@@ -844,6 +849,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         me._isDebug = opts.isDebug ? true : false;
         me._isPaused = opts.isPaused ? true : false;
+        me._port = undefined;
 
         let newServer = Net.createServer((socket) => {
             try {
@@ -1046,6 +1052,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             if (!err) {
                 me._server = newServer;
 
+                me._port = port;
                 me.log('TCP server started on port ' + port);
 
                 if (apps.length > 0) {

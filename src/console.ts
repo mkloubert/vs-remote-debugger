@@ -25,6 +25,7 @@
 
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import * as vsrd_contracts from './contracts';
+import * as vsrd_helpers from './helpers';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
 import OS = require('os');
@@ -91,7 +92,7 @@ const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
 const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
-const REGEX_CMD_HELP = /^(help)([\s]?)(.*)$/i;
+const REGEX_CMD_HELP = /^(help)(\s+.*)?$/i;
 const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
@@ -105,6 +106,7 @@ const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
 const REGEX_CMD_TEST = /^(test)([\s]?)(.*)$/i;  //TODO: test code
 const REGEX_CMD_UNSET = /^(unset)([\s]?)(.*)$/i;
+const REGEX_UNKNOWN_CMD = /^([\S]*)([\s]?)(.*)$/i;
 
 const URL_PAYPAL_DONATE = 'https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=GFV9X2A64ZK3Y';
 const URL_PROJECT_GITHUB = 'https://github.com/mkloubert/vs-remote-debugger';
@@ -234,6 +236,11 @@ export interface ExecuteCommandResult {
      * Sends a response.
      */
     sendResponse: (response?: DebugProtocol.EvaluateResponse) => void;
+}
+
+interface DisplayableEntry {
+    entry: vsrd_contracts.RemoteDebuggerEntry;
+    index: number;
 }
 
 interface VariableFinder {
@@ -634,30 +641,28 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_favs(result: ExecuteCommandResult, me: ConsoleManager): void {
-        let output = '';
-
         let favorites = result.favorites();
-        if (favorites && favorites.length > 0) {
+        let totalCount = 0;
+        
+        let entriesToDisplay: DisplayableEntry[] = [];
+        if (favorites) {
+            totalCount = favorites.length;
+
             for (let i = 0; i < favorites.length; i++) {
                 let fav = favorites[i];
-
-                output += me.toListEntryString(fav.entry, fav.index) + "\n";
+                if (fav && fav.entry) {
+                    entriesToDisplay.push({
+                        entry: fav.entry,
+                        index: fav.index,
+                    });
+                }
             }
-
-            output += "\t";
-
-            result.body(`Total number of favorites: ${favorites.length}`);
         }
-        else {
-            output = null;
-            result.body('No favorites found.');
-        }
+        
+        me.displayEntries(result,
+                          entriesToDisplay, totalCount);
 
         result.sendResponse();
-
-        if (output) {
-            result.write(output);
-        }
     }
 
     /**
@@ -794,22 +799,28 @@ export class ConsoleManager {
         let friends = result.friends();
 
         if (friends.length > 0) {
-            result.sendResponse();
-
             let output = '';
+
+            const Table = require('easy-table');
+            let t = new Table();
 
             for (let i = 0; i < friends.length; i++) {
                 let f = friends[i];
 
-                output += `[${i + 1}] ${f.name} => ${f.address}:${f.port}\n`;
+                t.cell('#', i + 1);
+                t.cell('Name', f.name);
+                t.cell('Address', `${f.address}:${f.port}`);
+                t.newRow();
             }
 
-            result.write(output);
+            result.body(`Found ${friends.length} friend${1 != friends.length ? 's' : ''}`);
+            result.writeLine(t.toString());
         }
         else {
-            result.body('No friends found.');
-            result.sendResponse();
+            result.body('No friends found');
         }
+
+        result.sendResponse();
     }
 
     /**
@@ -854,7 +865,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_help(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let cmd = match[3];
+        let cmd = match[2];
         if (cmd) {
             cmd = cmd.toLowerCase().trim();
         }
@@ -1082,20 +1093,16 @@ export class ConsoleManager {
         let entries = result.entries();
 
         let itemsToSkip: number = 0;
-        if ('' != match[3]) {
-            itemsToSkip = parseInt(match[3]);
+        if (match[3]) {
+            itemsToSkip = parseInt(('' + match[3]).trim());
         }
 
         let itemsToDisplay: number = 50;
-        if ('' != match[5]) {
-            itemsToDisplay = parseInt(match[5]);
+        if (match[5]) {
+            itemsToDisplay = parseInt(('' + match[5]).trim());
         }
 
-        let newIndex = parseInt(match[3].trim());
-
-        let output: string = '';
-
-        let numberOfDisplayedItems = 0;
+        let entriesToDisplay: DisplayableEntry[] = [];
         for (let i = 0; i < itemsToDisplay; i++) {
             let index = itemsToSkip + i;
             if (index >= entries.length) {
@@ -1104,29 +1111,18 @@ export class ConsoleManager {
             }
 
             let entry = entries[index];
-            if (!entry) {
-                break;
+            if (entry) {
+                entriesToDisplay.push({
+                    entry: entry,
+                    index: index + 1,
+                });
             }
-
-            ++numberOfDisplayedItems;
-            output += me.toListEntryString(entry, index + 1) + "\n";
         }
 
-        output += "\t";
-
-        if (numberOfDisplayedItems > 0) {
-            result.body(`Total number of entries: ${entries.length}`);
-        }
-        else {
-            output = null;
-            result.body("No items found!");
-        }
+        me.displayEntries(result,
+                          entriesToDisplay, entries.length);
 
         result.sendResponse();
-        
-        if (output) {
-            result.write(output);
-        }
     }
 
     /**
@@ -1297,8 +1293,11 @@ export class ConsoleManager {
      * 'me' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_me(result: ExecuteCommandResult): void {
+    protected cmd_me(result: ExecuteCommandResult, me: ConsoleManager): void {
+        let port = me._context.port();
+
         let foundInterfaces: OS.NetworkInterfaceInfo[] = [];
         
         let netInterfaces = OS.networkInterfaces();
@@ -1314,19 +1313,25 @@ export class ConsoleManager {
         }
 
         if (foundInterfaces.length > 0) {
-            let output = '';
+            const Table = require('easy-table');
+            let t = new Table();
             
             for (let i = 0; i < foundInterfaces.length; i++) {
                 let ni = foundInterfaces[i];
 
-                output += `[${i + 1}] (${ni.family}) ${ni.address} / ${ni.netmask} (${ni.mac})`;
-                output += "\n";
+                t.cell('#', i + 1);
+                t.cell('Family', ni.family);
+                t.cell('Address', `${ni.address}:${port}`);
+                t.cell('Mask', ni.netmask);
+                t.cell('MAC', ni.mac);
+                t.newRow();
             }
 
-            result.write(output);
+            result.write(t.toString());
+            result.body(`Found ${foundInterfaces.length} network interface${1 != foundInterfaces.length ? 's' : ''}`);
         }
         else {
-            result.body('No network interfaces found!');
+            result.body('No network interfaces found');
         }
 
         result.sendResponse();
@@ -1352,11 +1357,7 @@ export class ConsoleManager {
             itemsToDisplay = parseInt(match[5]);
         }
 
-        let newIndex = parseInt(match[3].trim());
-
-        let output: string = '';
-
-        let numberOfDisplayedItems = 0;
+        let entriesToDisplay: DisplayableEntry[] = [];
         for (let i = 0; i < itemsToDisplay; i++) {
             let index = entries.length - (itemsToSkip + i) - 1;
             if (index < 0) {
@@ -1365,29 +1366,18 @@ export class ConsoleManager {
             }
 
             let entry = entries[index];
-            if (!entry) {
-                break;
+            if (entry) {
+                entriesToDisplay.push({
+                    entry: entry,
+                    index: index + 1,
+                })
             }
-
-            ++numberOfDisplayedItems;
-            output += me.toListEntryString(entry, index + 1) + "\n";
         }
 
-        output += "\t";
-
-        if (numberOfDisplayedItems > 0) {
-            result.body(`Total number of entries: ${entries.length}`);
-        }
-        else {
-            output = null;
-            result.body("No items found!");
-        }
+        me.displayEntries(result,
+                          entriesToDisplay, entries.length);
 
         result.sendResponse();
-        
-        if (output) {
-            result.write(output);
-        }
     }
 
     /**
@@ -2123,7 +2113,6 @@ export class ConsoleManager {
         result.sendResponse();
     }
 
-
     /**
      * 'trim' command
      * 
@@ -2260,6 +2249,104 @@ export class ConsoleManager {
         result.sendResponse();
 
         result.gotoIndex(newIndex);
+    }
+
+    /**
+     * Displays a list of entries as table.
+     * 
+     * @param {ExecuteCommandResult} result The result context.
+     * @param {DisplayableEntry[]} entries The entries to display.
+     * @param {Number} totalCount The total number of entries.
+     */
+    protected displayEntries(result: ExecuteCommandResult,
+                             entries: DisplayableEntry[],
+                             totalCount: number) {
+        if (entries) {
+            entries = entries.filter(x => x ? true : false);
+        }
+
+        if (entries && entries.length > 0) {
+            const Table = require('easy-table');
+            let t = new Table();
+
+            for (let i = 0; i < entries.length; i++) {
+                let de = entries[i];
+                let e = de.entry;
+
+                let time = this.toDateString(e.__time);
+                if (!time) {
+                    time = '';
+                }
+
+                let file: string;
+                let line: number;
+                if (e.s && e.s.length > 0) {
+                    let firstStackFrame = e.s[0];
+
+                    file = firstStackFrame.f;
+                    if (firstStackFrame.l) {
+                        line = firstStackFrame.l;
+                    }
+                }
+
+                if (file) {
+                    file = '<' + ('' + file).trim() + '>';
+                }
+                if (!file) {
+                    file = '';
+                }
+
+                let notes = e.n;
+                if (notes) {
+                    notes = ('' + e.n).trim();
+                }
+                if (!notes) {
+                    notes = '';
+                }
+
+                let sendBy: string;
+                if (e.__origin) {
+                    let sendTime = this.toDateString(e.__origin.time);
+                    if (sendTime) {
+                        time = sendTime;
+                    }
+
+                    let addr = e.__origin.address;
+                    if (addr) {
+                        addr = ('' + e.__origin.address).trim();
+                    }
+                    if (addr) {
+                        let port: string;
+                        if (e.__origin.port) {
+                            port = ('' + e.__origin.port).trim();
+                        }
+                        if (!port) {
+                            port = '';
+                        }
+
+                        sendBy = `${addr}:${port}`;
+                    }
+                }
+                if (!sendBy) {
+                    sendBy = '';
+                }
+
+                t.cell('#', de.index);
+                t.cell('File', file);
+                t.cell('Line', line ? ('' + line).trim() : '');
+                t.cell('Time', time);
+                t.cell('Notes', notes);
+                t.cell('From', sendBy);
+                t.newRow();
+            }
+
+            result.writeLine(t.toString());
+
+            result.body(`Total number of items: ${totalCount}`);
+        }
+        else {
+            result.body('No items found');
+        }
     }
 
     /**
@@ -2476,12 +2563,24 @@ export class ConsoleManager {
             action = toRegexAction(this.cmd_unset,
                                    REGEX_CMD_UNSET, trimmedExpr);
         }
+        else {
+            // unknown command
+
+            action = toRegexAction(this.handleUnknownCommand,
+                                   REGEX_UNKNOWN_CMD, trimmedExpr);
+        }
 
         if (action) {
-            result.handled = true;
-            result.body('');
+            try {
+                result.handled = true;
+                result.body('');
 
-            action(result, this);
+                action(result, this);
+            }
+            catch (e) {
+                result.body('[FATAL COMMAND ERROR]: ' + e);
+                result.sendResponse();
+            }
         }
     }
 
@@ -2524,6 +2623,56 @@ export class ConsoleManager {
             result.body('Search error (1): ' + e);
             result.sendResponse();
         }
+    }
+
+    /**
+     * Handles an unknown command.
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected handleUnknownCommand(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let unknownCommand = match[1];
+        if (unknownCommand) {
+            unknownCommand = '' + unknownCommand;
+        }
+        if (!unknownCommand) {
+            unknownCommand = '';
+        }
+
+        let bestMatch: {
+            command: string;
+            similarity: number,
+        };
+
+        for (let cmd in COMMAND_WIKI_PAGES) {
+            let s = vsrd_helpers.getStringSimilarity(unknownCommand, cmd, true, true);
+            if (s < 0.5) {
+                continue;
+            }
+
+            let updateMatch = true;
+            if (bestMatch) {
+                updateMatch = s > bestMatch.similarity;
+            }
+
+            if (updateMatch) {
+                bestMatch = {
+                    command: cmd,
+                    similarity: s,
+                };
+            }
+        }
+
+        if (bestMatch) {
+            result.body(`Command '${unknownCommand}' is NOT available or implemented! Did you mean '${bestMatch.command}'?`);
+        }
+        else {
+            result.body(`Command '${unknownCommand}' is NOT available or implemented!`);
+        }
+        
+        result.sendResponse();
     }
 
     /**
@@ -2644,64 +2793,6 @@ export class ConsoleManager {
 
         return `${val.getFullYear()}-${padLeft(val.getMonth() + 1)}-${padLeft(val.getDate())}` + 
                (withTime ? ` ${padLeft(val.getHours())}:${padLeft(val.getMinutes())}:${padLeft(val.getSeconds())}` : '');
-    }
-
-    /**
-     * Creates a "list entry" string for an entry.
-     * 
-     * @param {vsrd_contracts.RemoteDebuggerEntry} [entry] The entry.
-     * @param {number} [index] The index to display.
-     */
-    protected toListEntryString(entry?: vsrd_contracts.RemoteDebuggerEntry, index?: number): string {
-        if (!entry) {
-            return;
-        }
-
-        let str: string = '';
-
-        let file = '<???>';
-        let line = '';
-        if (entry.s) {
-            if (entry.s.length > 0) {
-                let firstStackFrame = entry.s[0];
-
-                file = firstStackFrame.f;
-                if (firstStackFrame.l) {
-                    line = ` (${firstStackFrame.l})`;
-                }
-            }
-        }
-
-        // prefix
-        let prefix = '';
-        if (arguments.length > 1) {
-            prefix += `[${index}] `;
-        }
-
-        let prefixSpaces = ' '.repeat(prefix.length);
-
-        let origin = '';
-        if (entry.__origin) {
-            let sendTime: any = this.toDateString(entry.__origin.time);
-            if (sendTime) {
-                sendTime = ` (${sendTime})`;
-            }
-            else {
-                sendTime = '';
-            }
-
-            origin += `\n${prefixSpaces}From:  '${entry.__origin.address}:${entry.__origin.port}'${sendTime}`;
-        }
-
-        // additional information / notes
-        let notes = '';
-        if (entry.n) {
-            notes += `\n${prefixSpaces}Notes: ${entry.n}`;
-        }
-
-        str += `${prefix}${file}${line}${notes}${origin}`;
-
-        return str;
     }
 
     /**

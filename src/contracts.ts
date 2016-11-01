@@ -55,6 +55,11 @@ export interface DebuggerContext {
     plugins(): DebuggerPluginEntry[];
 
     /**
+     * Gets the port the server is currently running on.
+     */
+    port(): number;
+
+    /**
      * Gets the underlying session.
      */
     session: any;
