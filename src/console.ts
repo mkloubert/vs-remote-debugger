@@ -33,12 +33,64 @@ import Net = require('net');
 
 const DEFAULT_FILENAME_FORMAT = 'vsrd_favs_${timestamp}';
 
+// List of wiki pages for commands
+// 
+// key: command name
+// value: if defined: the suffix of the page name
+const COMMAND_WIKI_PAGES = {
+    '?': 'help_screen',
+    '+': 'next_message',
+    '-': 'prev_message',
+    'add': null,
+    'all': null,
+    'clear': null,
+    'continue': null,
+    'counter': null,
+    'current': null,
+    'debug': null,
+    'disable': null,
+    'exec': null,
+    'favs': null,
+    'find': null,
+    'first': null,
+    'friends': null,
+    'github': null,
+    'goto': null,
+    'help': null,
+    'history': null,
+    'last': null,
+    'list': null,
+    'load': null,
+    'log': null,
+    'me': null,
+    'new': null,
+    'next': null,
+    'nodebug': null,
+    'none': null,
+    'pause': null,
+    'refresh': null,
+    'regex': null,
+    'reset': null,
+    'save': null,
+    'search': 'find',
+    'send': null,
+    'set': null,
+    'share': null,
+    'sort': null,
+    'state': null,
+    'toggle': null,
+    'trim': null,
+    'unset': null,
+    'wait': null,
+};
+
 const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
 const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
 const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
+const REGEX_CMD_HELP = /^(help)([\s]?)(.*)$/i;
 const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
@@ -730,8 +782,72 @@ export class ConsoleManager {
      * 'help' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
      */
-    protected cmd_help(result: ExecuteCommandResult): void {
+    protected cmd_help(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let cmd = match[3];
+        if (cmd) {
+            cmd = cmd.toLowerCase().trim();
+        }
+
+        try {
+            const opn = require('opn');
+
+            let listOfCommands: string[];
+            if (cmd) {
+                listOfCommands = cmd.split(' ').map(x => {
+                    return x.toLowerCase().trim();
+                }).filter(x => {
+                    return x ? true : false;
+                });
+            }
+
+            if (listOfCommands && listOfCommands.length > 0) {
+                for (let i = 0; i < listOfCommands.length; i++) {
+                    let c = listOfCommands[i];
+
+                    try {
+                        if (undefined !== COMMAND_WIKI_PAGES[c]) {
+                            let wikiPage = COMMAND_WIKI_PAGES[c];
+                            if (!wikiPage) {
+                                wikiPage = c;
+                            }
+
+                            let url = `https://github.com/mkloubert/vs-remote-debugger/wiki/${encodeURIComponent('command_' + wikiPage)}`;
+                            opn(url);
+
+                            result.writeLine(`Opening wiki page of command '${c}': ${url}`);
+                        }
+                        else {
+                            result.writeLine(`Unknown command '${c}'!`);
+                        }
+                    }
+                    catch (e) {
+                        result.writeLine(`[ERROR] Could not open wiki page of '${c}' command: ` + e);
+                    }
+                }
+            }
+            else {
+                let url = `https://github.com/mkloubert/vs-remote-debugger/wiki#commands`;
+                opn(url);
+
+                result.writeLine(`Opening wiki page with all commands: ${url}`);
+            }
+        }
+        catch (e) {
+            result.body(`[ERROR] Could not open wiki page(s): ` + e);
+        }
+
+        result.sendResponse();
+    }
+
+    /**
+     * '?' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_help_screen(result: ExecuteCommandResult): void {
         let output = ' Command                                     | Description\n';
            output += '---------------------------------------------|-----------------------------------------------------------------------------------\n';
            output += ' ?                                           | Shows that help screen\n';
@@ -747,12 +863,13 @@ export class ConsoleManager {
            output += ' disable [pause]                             | Disables the counter and disables "pause mode" by default\n';
            output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
            output += ' favs                                        | Lists all favorites\n';
-           output += ' friends                                     | Displays the list of friends\n';
-           output += ' first                                       | Jumps to first item\n';
            output += ' find [$EXPR]                                | Starts a search for an expression inside the "Debugger" variables\n';
+           output += ' first                                       | Jumps to first item\n';
+           output += ' friends                                     | Displays the list of friends\n';
            output += ' github                                      | Opens the project page on GitHub\n';
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
-           output += ' history [$INDEXES]                          | List the logs of one or more entry\n';
+           output += ' help [$COMMANDS]                            | Opens the wiki page of one or more command with details information\n';
+           output += ' history [$INDEXES]                          | Lists the logs of one or more entry\n';
            output += ' last                                        | Jumps to last entry\n';
            output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Lists a number of entries\n';
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
@@ -771,8 +888,8 @@ export class ConsoleManager {
            output += ' search [$EXPR]                              | Alias for "find" command\n';
            output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
            output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
-           output += ' share [$FRIEND]*                            | Sends your favorites to one or more friend\n';
-           output += ' sort                                        | Sort all entries by timestamp\n';
+           output += ' share [$FRIENDS]*                           | Sends your favorites to one or more friend\n';
+           output += ' sort                                        | Sorts all entries by timestamp\n';
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
            output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
@@ -1781,6 +1898,20 @@ export class ConsoleManager {
     }
 
     /**
+     * 'toggle' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_toggle(result: ExecuteCommandResult): void {
+        let toggledIsPaused = !result.isPaused();
+        result.isPaused(toggledIsPaused);
+
+        result.body(toggledIsPaused ? 'Paused' : 'Running');
+        result.sendResponse();
+    }
+
+
+    /**
      * 'trim' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -1821,23 +1952,10 @@ export class ConsoleManager {
         result.entries(newEntries);
         result.favorites(newFavs);
 
-        result.body('List trimmed.');
+        result.body(`List trimmed to ${newEntries.length} entries`);
         result.sendResponse();
 
         result.gotoIndex(0);
-    }
-
-    /**
-     * 'toggle' command
-     * 
-     * @param {ExecuteCommandResult} result The object for handling the result.
-     */
-    protected cmd_toggle(result: ExecuteCommandResult): void {
-        let toggledIsPaused = !result.isPaused();
-        result.isPaused(toggledIsPaused);
-
-        result.body(toggledIsPaused ? 'Paused' : 'Running');
-        result.sendResponse();
     }
 
     /**
@@ -1942,7 +2060,7 @@ export class ConsoleManager {
         let lowerExpr = trimmedExpr.toLowerCase();
 
         if ('?' == lowerExpr) {
-            action = this.cmd_help;
+            action = this.cmd_help_screen;
         }
         else if ('+' == lowerExpr) {
             action = this.cmd_next;
@@ -2042,6 +2160,11 @@ export class ConsoleManager {
             // goto
             action = toRegexAction(this.cmd_goto,
                                    REGEX_CMD_GOTO, trimmedExpr);
+        }
+        else if (REGEX_CMD_HELP.test(trimmedExpr)) {
+            // help
+            action = toRegexAction(this.cmd_help,
+                                   REGEX_CMD_HELP, trimmedExpr);
         }
         else if (REGEX_CMD_HISTORY.test(trimmedExpr)) {
             // history
