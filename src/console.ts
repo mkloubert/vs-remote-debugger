@@ -50,6 +50,7 @@ const COMMAND_WIKI_PAGES = {
     'current': null,
     'debug': null,
     'disable': null,
+    'donate': null,
     'exec': null,
     'favs': null,
     'find': null,
@@ -59,6 +60,8 @@ const COMMAND_WIKI_PAGES = {
     'goto': null,
     'help': null,
     'history': null,
+    'issue': 'issues',
+    'issues': null,
     'last': null,
     'list': null,
     'load': null,
@@ -67,6 +70,7 @@ const COMMAND_WIKI_PAGES = {
     'new': null,
     'next': null,
     'nodebug': null,
+    'nofavs': 'none',
     'none': null,
     'pause': null,
     'plugins': null,
@@ -83,6 +87,7 @@ const COMMAND_WIKI_PAGES = {
     'state': null,
     'toggle': null,
     'trim': null,
+    'twitter': null,
     'unset': null,
     'wait': null,
 };
@@ -91,25 +96,26 @@ const REGEX_CMD_ADD = /^(add)(\s+.*)?$/i;
 const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
-const REGEX_CMD_FIND = /^(find|search)([\s]?)(.*)$/i;
+const REGEX_CMD_FIND = /^(find|search)(\s+.*)?$/i;
 const REGEX_CMD_GOTO = /^(goto)([\s]+)([0-9]+)$/i;
 const REGEX_CMD_HELP = /^(help)(\s+.*)?$/i;
-const REGEX_CMD_HISTORY = /^(history)([\s]?)(.*)$/i;
+const REGEX_CMD_HISTORY = /^(history)(\s+.*)?$/i;
 const REGEX_CMD_LIST = /^(list)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
-const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
-const REGEX_CMD_LOG = /^(log)([\s])(.*)$/i;
+const REGEX_CMD_LOAD = /^(load)(\s+.*)?$/i;
+const REGEX_CMD_LOG = /^(log)(\s+.*)?$/i;
 const REGEX_CMD_NEW = /^(new)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
-const REGEX_CMD_REGEX = /^(regex)([\s]?)(.*)$/i;
+const REGEX_CMD_REGEX = /^(regex)(\s+.*)?$/i;
 const REGEX_CMD_REMOVE = /^(remove)(\s+.*)?$/
 const REGEX_CMD_RESET = /^(reset)([\s]*)(pause)?$/i;
-const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
+const REGEX_CMD_SAVE = /^(save)(\s+.*)?$/i;
 const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
 const REGEX_CMD_SEND = /^(send)([\s]+)([\S]+)([\s]*)([0-9]*)$/i;
-const REGEX_CMD_SET = /^(set)([\s])(.*)$/i;
+const REGEX_CMD_SET = /^(set)(\s+.*)?$/i;
 const REGEX_CMD_TEST = /^(test)([\s]?)(.*)$/i;  //TODO: test code
-const REGEX_CMD_UNSET = /^(unset)([\s]?)(.*)$/i;
-const REGEX_UNKNOWN_CMD = /^([\S]*)([\s]?)(.*)$/i;
+const REGEX_CMD_UNSET = /^(unset)(\s+.*)?$/i;
+const REGEX_UNKNOWN_CMD = /^([\S]*)(\s+.*)?$/i;
 
+const URL_ISSUES_GITHUB = 'https://github.com/mkloubert/vs-remote-debugger/issues';
 const URL_PAYPAL_DONATE = 'https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=GFV9X2A64ZK3Y';
 const URL_PROJECT_GITHUB = 'https://github.com/mkloubert/vs-remote-debugger';
 const URL_TWITTER = 'https://twitter.com/mjkloubert';
@@ -753,7 +759,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_find(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let expr = match[3];
+        let expr =  vsrd_helpers.normalizeString(match[2]);
         if (expr) {
             let parts = expr.split(' ').map((x) => {
                 return x.toLowerCase().trim();
@@ -923,6 +929,25 @@ export class ConsoleManager {
     }
 
     /**
+     * 'issue' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_issues(result: ExecuteCommandResult): void {
+        try {
+            const opn = require('opn');
+            opn(URL_ISSUES_GITHUB);
+
+            result.body(`Opening issue page on GitHub (${URL_ISSUES_GITHUB})...`);
+        }   
+        catch (e) {
+            result.body(`[ERROR] Could not open URL '${URL_ISSUES_GITHUB}': ` + e);
+        }   
+
+        result.sendResponse();
+    }
+
+    /**
      * 'goto' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -1060,6 +1085,7 @@ export class ConsoleManager {
            output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
            output += ' help [$COMMANDS]                            | Opens the wiki page of one or more command with details information\n';
            output += ' history [$INDEXES]                          | Lists the logs of one or more entry\n';
+           output += ' issues                                      | Opens the "issues" page of the project on GitHub\n';
            output += ' last                                        | Jumps to last entry\n';
            output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Lists a number of entries\n';
            output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
@@ -1085,7 +1111,7 @@ export class ConsoleManager {
            output += ' state                                       | Displays the current debugger state\n';
            output += ' toggle                                      | Toggles "paused" state\n';
            output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
-           output += ' twitter                                     | Opens by twitter page\n';
+           output += ' twitter                                     | Opens my twitter page\n';
            output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
            output += ' wait                                        | Starts waiting for an entry\n';
 
@@ -1104,7 +1130,9 @@ export class ConsoleManager {
     protected cmd_history(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
 
-        let ranges = me.toNumberRanges(match[3]);
+        let listOfRanges =  vsrd_helpers.normalizeString(match[2]);
+
+        let ranges = me.toNumberRanges(listOfRanges);
         if (ranges.length < 1) {
             if (result.currentEntry()) {
                 ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
@@ -1129,7 +1157,6 @@ export class ConsoleManager {
 
                 for (let j = 0; j < entries.length; j++) {
                     let index = j + 1;
-
                     if (!r.isInRange(index)) {
                         continue;
                     }
@@ -1244,7 +1271,7 @@ export class ConsoleManager {
      */
     protected cmd_load(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
-        let file = match[3].trim();
+        let file = vsrd_helpers.normalizeString(match[2]);
 
         let finish = () => {
             result.sendResponse();
@@ -1371,7 +1398,7 @@ export class ConsoleManager {
     protected cmd_log(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let now = new Date();
         
-        let msg = match[3];
+        let msg = vsrd_helpers.normalizeString(match[2]);
         if (msg) {
             let index = result.currentIndex();
             let entry = result.currentEntry();
@@ -1718,7 +1745,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_regex(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let pattern = match[3];
+        let pattern = vsrd_helpers.normalizeString(match[2]);
         if (pattern) {
             let regex: RegExp;
             try {
@@ -1931,7 +1958,8 @@ export class ConsoleManager {
         let now = new Date();
         
         let favorites = result.favorites();
-        let file = match[3].trim();
+        
+        let file = vsrd_helpers.normalizeString(match[2]);
 
         let padLeft = (n: number): string => {
             let s = '' + n;
@@ -1948,8 +1976,7 @@ export class ConsoleManager {
 
         if (favorites.length > 0) {
             try {
-                
-                if ('' == file) {
+                if (!file) {
                     // auto save
 
                     let baseName = result.filenameFormat();
@@ -2119,7 +2146,7 @@ export class ConsoleManager {
      * @param {RegExpExecArray} match Matches of the execution of a regular expression.
      */
     protected cmd_set(result: ExecuteCommandResult, match: RegExpExecArray): void {
-        let text = match[3].trim();
+        let text = vsrd_helpers.normalizeString(match[2]);
 
         let index = result.currentIndex();
         let entry = result.currentEntry();
@@ -2371,8 +2398,10 @@ export class ConsoleManager {
      */
     protected cmd_unset(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
+
+        let listOfRanges = vsrd_helpers.normalizeString(match[2]);
         
-        let ranges = me.toNumberRanges(match[3]);
+        let ranges = me.toNumberRanges(listOfRanges);
         if (ranges.length < 1) {
             if (result.currentEntry()) {
                 ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
@@ -2604,6 +2633,10 @@ export class ConsoleManager {
         else if ('github' == lowerExpr) {
             action = this.cmd_github;
         }
+        else if ('issues' == lowerExpr ||
+                 'issue' == lowerExpr) {
+            action = this.cmd_issues;
+        }
         else if ('last' == lowerExpr) {
             action = this.cmd_last;
         }
@@ -2821,13 +2854,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected handleUnknownCommand(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let unknownCommand = match[1];
-        if (unknownCommand) {
-            unknownCommand = '' + unknownCommand;
-        }
-        if (!unknownCommand) {
-            unknownCommand = '';
-        }
+        let unknownCommand = vsrd_helpers.normalizeString(match[1]);
 
         let bestMatch: {
             command: string;

@@ -117,3 +117,21 @@ export function isNullOrUndefined(val: any): boolean {
     return null === val ||
            undefined === val;
 }
+
+/**
+ * Normalizes a string.
+ * 
+ * @param {any} The input value.
+ * 
+ * @return {String} The normalized value.
+ */
+export function normalizeString(str: any): string {
+    if (str) {
+        str = ('' + str).trim();
+    }
+    if (!str) {
+        str = '';
+    }
+
+    return str;
+}
