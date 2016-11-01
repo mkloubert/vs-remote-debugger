@@ -68,6 +68,7 @@ const COMMAND_WIKI_PAGES = {
     'nodebug': null,
     'none': null,
     'pause': null,
+    'plugins': null,
     'refresh': null,
     'regex': null,
     'reset': null,
@@ -570,7 +571,7 @@ export class ConsoleManager {
             let executedCommands = 0;
             let plugins = me._context.plugins();
             for (let i = 0; i < plugins.length; i++) {
-                let p = plugins[i];
+                let p = plugins[i].plugin;
                 if (p.commands && p.execute) {
                     let execCtx: vsrd_contracts.DebuggerPluginExecutionContext;
                     
@@ -949,6 +950,7 @@ export class ConsoleManager {
            output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
            output += ' none                                        | Clears all favorites\n';
            output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
+           output += ' plugins                                     | Lists all loaded plugins\n';
            output += ' refresh                                     | Refreshes the view\n';
            output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
            output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n';
@@ -965,11 +967,10 @@ export class ConsoleManager {
            output += ' twitter                                     | Opens by twitter page\n';
            output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
            output += ' wait                                        | Starts waiting for an entry\n';
-            
-        result.body('');
-        result.sendResponse();
 
         result.write(output);
+
+        result.sendResponse();
     }
 
     /**
@@ -1451,6 +1452,148 @@ export class ConsoleManager {
         result.sendResponse();
 
         result.gotoIndex(newIndex);
+    }
+
+    /**
+     * 'plugins' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_plugins(result: ExecuteCommandResult, me: ConsoleManager): void {
+        try {
+            let plugins = me._context.plugins();
+
+            if (plugins.length > 0) {
+                let output = '';
+
+                const Table = require('easy-table');
+                let t;
+                
+                t = new Table();
+                for (let i = 0; i < plugins.length; i++) {
+                    let pe = plugins[i];
+                    let p = pe.plugin;
+                    
+                    let info: vsrd_contracts.DebuggerPluginInfo;
+                    if (p.info) {
+                        info = p.info();
+                    }
+
+                    let hp: string;
+                    let lic: string;
+                    let name: string = pe.name;
+                    let ver: string;
+                    if (info) {
+                        hp = info.homepage;
+                        lic = info.license;
+
+                        if (name) {
+                            name = info.name;
+                        }
+
+                        ver = info.version;
+                    }
+
+                    if (!hp) {
+                        hp = 'n/a';
+                    }
+                    if (!lic) {
+                        lic = 'n/a';
+                    }
+                    if (!name) {
+                        name = 'n/a';
+                    }
+                    if (!ver) {
+                        ver = 'n/a';
+                    }
+
+                    let commands: string[] = [];
+                    let implementedFeatures: string[] = [];
+                    let pluginCommands: string[];
+                    if (p.execute && p.commands) {
+                        pluginCommands = p.commands();
+                        
+                        implementedFeatures.push('E');
+                    }
+                    if (p.filterEntry) {
+                        implementedFeatures.push('FE');
+                    }
+                    if (p.processEntry) {
+                        implementedFeatures.push('PE');
+                    }
+                    if (p.restoreMessage) {
+                        implementedFeatures.push('RM');
+                    }
+                    if (p.transformMessage) {
+                        implementedFeatures.push('TM');
+                    }
+
+                    t.cell('#', i + 1);
+                    t.cell('Name', name);
+                    t.cell('File', pe.file.name);
+                    t.cell('Version', ver);
+
+                    let commandList: string = '';
+                    if (pluginCommands) {
+                        if (pluginCommands.length > 0) {
+                            commandList = '"' + pluginCommands
+                                .map(x => x ? ('' + x) : '')
+                                .map(x => x.toLowerCase().trim())
+                                .filter(x => x ? true : false)
+                                .sort()
+                                .join('", "') + '"';
+                        }
+                    }
+
+                    t.cell('Features*', implementedFeatures.join(', '));
+                    t.cell('Commands', commandList);
+                    t.cell('License', lic);
+                    t.cell('Homepage', hp);
+
+                    t.newRow();
+                }
+                output += t.toString() + "\n";
+
+                output += "\n";
+                output += "*\n";
+                t = new Table();
+                {
+                    t.cell('Feature', 'E');
+                    t.cell('Description', 'Can execute commands');
+                    t.newRow();
+
+                    t.cell('Feature', 'FE');
+                    t.cell('Description', 'Filters incoming entries');
+                    t.newRow();
+
+                    t.cell('Feature', 'PE');
+                    t.cell('Description', 'Processes incoming entries');
+                    t.newRow();
+
+                    t.cell('Feature', 'RM');
+                    t.cell('Description', 'Restores transformed JSON messages');
+                    t.newRow();
+
+                    t.cell('Feature', 'TM');
+                    t.cell('Description', 'Transforms JSON messages into new data');
+                    t.newRow();
+                }
+                output += t.toString();
+
+                result.writeLine(output);
+
+                result.body(`Found ${plugins.length} plugin${1 != plugins.length ? 's' : ''}`);
+            }
+            else {
+                result.body('No plugins loaded');
+            }
+        }
+        catch (e) {
+            result.body('ERROR: ' + e);
+        }
+
+        result.sendResponse();
     }
 
     /**
@@ -2209,6 +2352,9 @@ export class ConsoleManager {
         else if ('pause' == lowerExpr) {
             action = this.cmd_pause;
         }
+        else if ('plugins' == lowerExpr) {
+            action = this.cmd_plugins;
+        }
         else if ('refresh' == lowerExpr) {
             action = this.cmd_refresh;
         }
@@ -2409,7 +2555,7 @@ export class ConsoleManager {
                 // prepare JSON data
                 let plugins = me._context.plugins();
                 for (let i = plugins.length - 1; i >= 0; i--) {
-                    let p = plugins[i];
+                    let p = plugins[i].plugin;
 
                     if (p.transformMessage) {
                         json = p.transformMessage(json);

@@ -92,7 +92,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded plugins.
      */
-    protected _plugins: vsrd_contracts.DebuggerPlugin[];
+    protected _plugins: vsrd_contracts.DebuggerPluginEntry[];
     /**
      * The current server.
      */
@@ -640,7 +640,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 continue;
             }
 
-            let plugin: vsrd_contracts.DebuggerPlugin;
+            let pluginEntry: vsrd_contracts.DebuggerPluginEntry;
 
             let pluginFile = Path.join(currentDir, 'plugins', `${pluginName}.js`);
             if (FS.existsSync(pluginFile)) {
@@ -650,17 +650,28 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     let pluginModule: vsrd_contracts.DebuggerPluginModule = require(pluginFile);
                     if (pluginModule) {
                         if (pluginModule.create) {
-                            plugin = pluginModule.create(me._context, pluginCfg);
+                            let plugin: vsrd_contracts.DebuggerPlugin = pluginModule.create(me._context, pluginCfg);
+
+                            if (plugin) {
+                                pluginEntry = {
+                                    file: {
+                                        name: basename(pluginFile),
+                                        path: pluginFile,
+                                    },
+                                    name: pluginName,
+                                    plugin: plugin,
+                                };
+                            }
                         }
                     }
                 }
             }
 
-            if (!plugin) {
+            if (!pluginEntry) {
                 throw `Could not load plugin '${pluginName}'!`;
             }
 
-            me._plugins.push(plugin);
+            me._plugins.push(pluginEntry);
             loadedPlugins.push(pluginName);
         }
 
@@ -897,7 +908,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         // decrypt data
                         let decryptedBuffer = buff;
                         for (let i = 0; i < me._plugins.length; i++) {
-                            let plugin = me._plugins[i];
+                            let plugin = me._plugins[i].plugin;
 
                             if (plugin.restoreMessage) {
                                 decryptedBuffer = plugin.restoreMessage(decryptedBuffer);
@@ -918,6 +929,19 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                                 port: socket.remotePort,
                                 time: now,
                             };
+                        }
+
+                        // process entry
+                        for (let i = 0; i < me._plugins.length; i++) {
+                            let plugin = me._plugins[i].plugin;
+
+                            if (plugin.processEntry) {
+                                if (true === plugin.processEntry(entry)) {
+                                    // upcoming plugins should not
+                                    // process that entry
+                                    break;
+                                }
+                            }
                         }
 
                         let addEntry = true;
@@ -968,6 +992,21 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                                             addEntry = true;
                                             break;
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        // filter
+                        if (addEntry) {
+                            for (let i = 0; i < me._plugins.length; i++) {
+                                let plugin = me._plugins[i].plugin;
+
+                                if (plugin.filterEntry) {
+                                    if (false === plugin.filterEntry(entry)) {
+                                        // drop
+                                        addEntry = false;
+                                        break;
                                     }
                                 }
                             }

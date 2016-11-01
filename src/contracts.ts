@@ -52,7 +52,7 @@ export interface DebuggerContext {
     /**
      * Returns the list of plugins.
      */
-    plugins(): DebuggerPlugin[];
+    plugins(): DebuggerPluginEntry[];
 
     /**
      * Gets the underlying session.
@@ -79,6 +79,33 @@ export interface DebuggerPlugin {
     execute?: (ctx: DebuggerPluginExecutionContext) => any;
 
     /**
+     * Checks if an incoming entry should be dropped or not.
+     * 
+     * @param {RemoteDebuggerEntry} entry The entry to check.
+     * 
+     * @param {boolean} The entry will be dropped if (false) is returned; otherwise
+     *                  it will be added to list.
+     */
+    filterEntry?: (entry: RemoteDebuggerEntry) => any;
+
+    /**
+     * Returns information about that plugin.
+     * 
+     * @return {DebuggerPluginInfo} The information.
+     */
+    info?: () => DebuggerPluginInfo;
+
+    /**
+     * Processes an entry.
+     * 
+     * @param {RemoteDebuggerEntry} entry The entry to process.
+     * 
+     * @return {boolean} (true) indicates that no more plugins should
+     *                   process the entry (again).
+     */
+    processEntry?: (entry: RemoteDebuggerEntry) => any;
+
+    /**
      * Restores a transformed / encoded / crypted message.
      * 
      * @param {Buffer} [transformed] The transformed data.
@@ -95,6 +122,96 @@ export interface DebuggerPlugin {
      * @param {Buffer} The transformed data.
      */
     transformMessage?: (msg: Buffer) => Buffer;
+}
+
+/**
+ * Describes an entry for a debugger plugin.
+ */
+export interface DebuggerPluginEntry {
+    /**
+     * The underlying file.
+     */
+    file: {
+        /**
+         * The base name.
+         */
+        name: string,
+
+        /**
+         * The full path.
+         */
+        path: string,
+    },
+
+    /**
+     * The name defined by the debugger.
+     */
+    name: string,
+
+    /**
+     * The underlying instance.
+     */
+    plugin: DebuggerPlugin,
+}
+
+/**
+ * Provides information about a plugin.
+ */
+export interface DebuggerPluginInfo {
+    /**
+     * Information about the constributors.
+     */
+    constributors?: {
+        /**
+         * eMail address
+         */
+        email?: string;
+
+        /**
+         * Username on GitHub
+         */
+        github?: string;
+
+        /**
+         * Homepage
+         */
+        homepage?: string;
+
+        /**
+         * Name / nick
+         */
+        name?: string;
+
+        /**
+         * Username on Twitter (without leading @ char!)
+         */
+        twitter?: string;
+    }[],
+
+    /**
+     * A short description that the plugin does.
+     */
+    description?: string;
+
+    /**
+     * (Project) homepage.
+     */
+    homepage?: string;
+
+    /**
+     * The name of the license
+     */
+    license?: string;
+
+    /**
+     * Display name.
+     */
+    name?: string;
+
+    /**
+     * Version
+     */
+    version?: string;
 }
 
 /**

@@ -45,6 +45,26 @@ class GZipPlugin implements vsrd_contracts.DebuggerPlugin {
     constructor(ctx: vsrd_contracts.DebuggerContext) {
         this._context = ctx;
     }
+
+    /** @inheritdoc */
+    public info(): vsrd_contracts.DebuggerPluginInfo {
+        return {
+            constributors: [
+                // Marcel Kloubert
+                {
+                    email: 'marcel.kloubert@gmx.net',
+                    name: 'Marcel J. Kloubert',
+                    github: 'mkloubert',
+                    twitter: 'mjkloubert',
+                },
+            ],
+            name: "GZip",
+            description: "Compresses or decompresses debugger messages with GZIP",
+            version: "1.0.0",
+            homepage: "https://github.com/mkloubert/vs-remote-debugger",
+            license: 'MIT',
+        };
+    }
     
     /** @inheritdoc */
     public restoreMessage(transformed: Buffer): Buffer {
