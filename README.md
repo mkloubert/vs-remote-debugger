@@ -129,4 +129,4 @@ If the debugger instance is running, you can use the "Debugger console" (CTRL + 
 
 Input `?` inside your "command field" if you would like to display all available commands that are provided by the debugger.
 
-A complete list of commands with detail descriptions and examples, can be found at the (wiki)[https://github.com/mkloubert/vs-remote-debugger/wiki#commands]
+A complete list of commands with detail descriptions and examples, can be found at the [wiki](https://github.com/mkloubert/vs-remote-debugger/wiki#commands])
