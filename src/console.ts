@@ -72,6 +72,7 @@ const COMMAND_WIKI_PAGES = {
     'plugins': null,
     'refresh': null,
     'regex': null,
+    'remove': null,
     'reset': null,
     'save': null,
     'search': 'find',
@@ -86,7 +87,7 @@ const COMMAND_WIKI_PAGES = {
     'wait': null,
 };
 
-const REGEX_CMD_ADD = /^(add)([\s]?)(.*)$/i;
+const REGEX_CMD_ADD = /^(add)(\s+.*)?$/i;
 const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
@@ -99,6 +100,7 @@ const REGEX_CMD_LOAD = /^(load)([\s]*)([\S]*)$/i;
 const REGEX_CMD_LOG = /^(log)([\s])(.*)$/i;
 const REGEX_CMD_NEW = /^(new)([\s]*)([0-9]*)([\s]*)([0-9]*)$/i;
 const REGEX_CMD_REGEX = /^(regex)([\s]?)(.*)$/i;
+const REGEX_CMD_REMOVE = /^(remove)(\s+.*)?$/
 const REGEX_CMD_RESET = /^(reset)([\s]*)(pause)?$/i;
 const REGEX_CMD_SAVE = /^(save)([\s]*)([\S]*)$/i;
 const REGEX_CMD_SHARE = /^(share)([\s]*)(.*)$/i;
@@ -329,8 +331,16 @@ export class ConsoleManager {
     protected cmd_add(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let entries = result.entries();
         let favorites = result.favorites();
-        
-        let ranges = me.toNumberRanges(match[3]);
+
+        let listOfRanges = match[2];
+        if (listOfRanges) {
+            listOfRanges = listOfRanges.trim();
+        }
+        if (!listOfRanges) {
+            listOfRanges = '';
+        }
+
+        let ranges = me.toNumberRanges(listOfRanges);
         if (ranges.length < 1) {
             if (result.currentEntry()) {
                 ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
@@ -348,22 +358,20 @@ export class ConsoleManager {
         }
 
         if (null !== ranges) {
-            let addFavs: number[] = [];
+            let addedFavs: number[] = [];
 
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
                 for (let j = 0; j < entries.length; j++) {
                     let index = j + 1;
-
                     if (!r.isInRange(index)) {
                         continue;
                     }
 
-                    let e = entries[j];
                     let exists = false;
-                    for (let i = 0; i < favorites.length; i++) {
-                        if (favorites[i].index == index) {
+                    for (let k = 0; k < favorites.length; k++) {
+                        if (favorites[k].index == index) {
                             // do not add duplicates
 
                             exists = true;
@@ -371,19 +379,21 @@ export class ConsoleManager {
                         }
                     }
 
-                    if (!exists) {
-                        let fav: vsrd_contracts.RemoteDebuggerFavorite = { 
-                            index: index,
-                            entry: e,
-                        };
-
-                        favorites.push(fav);
-                        addFavs.push(fav.index);
+                    if (exists) {
+                        continue;   
                     }
+
+                    let fav: vsrd_contracts.RemoteDebuggerFavorite = { 
+                        index: index,
+                        entry: entries[j],
+                    };
+
+                    favorites.push(fav);
+                    addedFavs.push(fav.index);
                 }
             }
 
-            if (addFavs.length > 0) {
+            if (addedFavs.length > 0) {
                 favorites.sort((x, y) => {
                     if (x.index > y.index) {
                         return 1;
@@ -395,10 +405,10 @@ export class ConsoleManager {
                     return 0;
                 });
 
-                result.body(`The following ${addFavs.length} favorites were added: ${addFavs.sort().join(',')}`);
+                result.body(`The following ${addedFavs.length} favorites were added: ${addedFavs.sort().join(',')}`);
             }
             else {
-                result.body('No favorites added!');
+                result.body('No favorites added');
             }
         }
 
@@ -568,7 +578,13 @@ export class ConsoleManager {
      */
     protected cmd_exec(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         try {
-            let cmd = match[3].toLowerCase().trim();
+            let cmd = match[3];
+            if (cmd) {
+                cmd = cmd.toLowerCase().trim();
+            }
+            if (!cmd) {
+                cmd = '';
+            }
             
             let args = match[5];
             if (!args) {
@@ -624,7 +640,71 @@ export class ConsoleManager {
             }
 
             if (executedCommands < 1) {
-                result.body(`Command '${cmd}' was not found!`);
+                let bestMatch: {
+                    command: string;
+                    plugin: vsrd_contracts.DebuggerPluginEntry,
+                    similarity: number,
+                };
+
+                // try find similar commands
+                for (let i = 0; i < plugins.length; i++) {
+                    let pe = plugins[i];
+                    let p = pe.plugin;
+
+                    if (p.commands && p.execute) {
+                        let supportedCommands = p.commands();
+                        if (supportedCommands) {
+                            for (let j = 0; j < supportedCommands.length; j++) {
+                                let sc = supportedCommands[j];
+                                if (sc) {
+                                    sc = ('' + sc).toLowerCase().trim();
+                                }
+
+                                if (!sc) {
+                                    continue;
+                                }
+
+                                let sim = vsrd_helpers.getStringSimilarity(cmd, sc);
+                                if (sim < 0.5) {
+                                    continue;
+                                }
+
+                                let updateMatch = true;
+                                if (bestMatch) {
+                                    updateMatch = sim > bestMatch.similarity;
+                                }
+
+                                if (updateMatch) {
+                                    bestMatch = {
+                                        command: sc,
+                                        plugin: pe,
+                                        similarity: sim,
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (bestMatch) {
+                    let pluginName: string;
+                    if (bestMatch.plugin.plugin.info) {
+                        let pluginInfo = bestMatch.plugin.plugin.info();
+
+                        if (pluginInfo && pluginInfo.name) {
+                            pluginName = ('' + pluginInfo.name).trim();
+                        }
+                    }
+                        
+                    if (!pluginName) {
+                       pluginName = bestMatch.plugin.name;
+                    }
+
+                    result.body(`Plugin command '${cmd}' was not found! Did you mean '${bestMatch.command}' by '${pluginName}' (${bestMatch.plugin.file.name})?`);
+                }
+                else {
+                    result.body(`Plugin command '${cmd}' was not found!`);
+                }
             }
         }
         catch (e) {
@@ -964,6 +1044,7 @@ export class ConsoleManager {
            output += ' plugins                                     | Lists all loaded plugins\n';
            output += ' refresh                                     | Refreshes the view\n';
            output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
+           output += ' remove [$INDEXES]                           | Removes one or more entry from the list of favorites\n';
            output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n';
            output += '                                             | and disables "pause mode" by default\n';  
            output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
@@ -1700,6 +1781,79 @@ export class ConsoleManager {
                 me.findNextVariables(result);
             }
         }
+    }
+
+    /**
+     * 'remove' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_remove(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let entries = result.favorites();
+        let favorites = result.favorites();
+
+        let listOfRanges = match[2];
+        if (listOfRanges) {
+            listOfRanges = listOfRanges.trim();
+        }
+        if (!listOfRanges) {
+            listOfRanges = '';
+        }
+
+        let ranges = me.toNumberRanges(listOfRanges);
+        if (ranges.length < 1) {
+            if (result.currentEntry()) {
+                ranges = me.toNumberRanges(`${result.currentIndex() + 1}`);
+            }
+            else {
+                ranges = null;
+
+                if (entries.length > 0) {
+                    result.body(`Please select valid indexes from 1 to ${entries.length}!`);
+                }
+                else {
+                    result.body('Please select an entry!');
+                }
+            }
+        }
+
+        if (null !== ranges) {
+            let removedFavs: number[] = [];
+
+            let newFavs: vsrd_contracts.RemoteDebuggerFavorite[] = favorites;
+            for (let i = 0; i < ranges.length; i++) {
+                let r = ranges[i];
+
+                for (let j = 0; j < entries.length; j++) {
+                    let index = j + 1;
+                    if (!r.isInRange(index)) {
+                        continue;
+                    }
+
+                    newFavs = newFavs.filter(x => {
+                        if (x.index == index) {
+                            removedFavs.push(x.index);
+                            return false;
+                        }
+
+                        return true;
+                    });
+                }
+            }
+
+            result.favorites(newFavs);
+
+            if (removedFavs.length > 0) {
+                result.body(`The following ${removedFavs.length} favorites were removed: ${removedFavs.sort().join(',')}`);
+            }
+            else {
+                result.body('No favorites removed');
+            }
+        }
+
+        result.sendResponse();
     }
 
     /**
@@ -2527,6 +2681,11 @@ export class ConsoleManager {
             // regex
             action = toRegexAction(this.cmd_regex,
                                    REGEX_CMD_REGEX, trimmedExpr);
+        }
+        else if (REGEX_CMD_REMOVE.test(trimmedExpr)) {
+            // remove
+            action = toRegexAction(this.cmd_remove,
+                                   REGEX_CMD_REMOVE, trimmedExpr);
         }
         else if (REGEX_CMD_RESET.test(leftTrimmerExpr)) {
             // reset
