@@ -979,7 +979,36 @@ export class ConsoleManager {
                             result.writeLine(`Opening wiki page of command '${c}': ${url}`);
                         }
                         else {
-                            result.writeLine(`Unknown command '${c}'!`);
+                            let bestMatch: {
+                                command: string;
+                                similarity: number,
+                            };
+
+                            for (let cmd in COMMAND_WIKI_PAGES) {
+                                let s = vsrd_helpers.getStringSimilarity(c, cmd, true, true);
+                                if (s < 0.5) {
+                                    continue;
+                                }
+
+                                let updateMatch = true;
+                                if (bestMatch) {
+                                    updateMatch = s > bestMatch.similarity;
+                                }
+
+                                if (updateMatch) {
+                                    bestMatch = {
+                                        command: cmd,
+                                        similarity: s,
+                                    };
+                                }
+                            }
+
+                            if (bestMatch) {
+                                result.body(`Unknown command '${c}'! Did you mean '${bestMatch.command}'?`);
+                            }
+                            else {
+                                result.body(`Unknown command '${c}'!`);
+                            }
                         }
                     }
                     catch (e) {
