@@ -146,7 +146,7 @@ export function normalizeString(str: any): string {
  * 
  * @return {Promise<Buffer>} The promise.
  */
-export function readSocket<T>(socket: Net.Socket, numberOfBytes: number, tag?: T): Promise<Buffer> {
+export function readSocket(socket: Net.Socket, numberOfBytes: number): Promise<Buffer> {
     return new Promise<Buffer>((resolve, reject) => {
         try {
             let buff: Buffer = socket.read(numberOfBytes);
