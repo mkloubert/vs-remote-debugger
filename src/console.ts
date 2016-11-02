@@ -89,7 +89,6 @@ const COMMAND_WIKI_PAGES = {
     'trim': null,
     'twitter': null,
     'unset': null,
-    'wait': null,
 };
 
 const REGEX_CMD_ADD = /^(add)(\s+.*)?$/i;
@@ -1113,7 +1112,6 @@ export class ConsoleManager {
            output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
            output += ' twitter                                     | Opens my twitter page\n';
            output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
-           output += ' wait                                        | Starts waiting for an entry\n';
 
         result.write(output);
 
@@ -2450,20 +2448,6 @@ export class ConsoleManager {
     }
 
     /**
-     * 'last' command
-     * 
-     * @param {ExecuteCommandResult} result The object for handling the result.
-     */
-    protected cmd_wait(result: ExecuteCommandResult): void {
-        let newIndex = result.entries().length;
-
-        result.body(`New index: ${newIndex + 1}`);
-        result.sendResponse();
-
-        result.gotoIndex(newIndex);
-    }
-
-    /**
      * Displays a list of entries as table.
      * 
      * @param {ExecuteCommandResult} result The result context.
@@ -2675,9 +2659,6 @@ export class ConsoleManager {
         }
         else if ('twitter' == lowerExpr) {
             action = this.cmd_twitter;
-        }
-        else if ('wait' == lowerExpr) {
-            action = this.cmd_wait;
         }
         else if (REGEX_CMD_ADD.test(trimmedExpr)) {
             // add

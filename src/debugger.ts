@@ -371,14 +371,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected gotoIndex(newIndex?: number, response?: DebugProtocol.Response) {
         if (arguments.length < 1) {
-            newIndex = this._entries.length;
+            newIndex = this._entries.length - 1;
         }
         
         if (newIndex < 0) {
             newIndex = 0;
         }
-        if (newIndex > this._entries.length) {
-            newIndex = this._entries.length;
+        if (newIndex >= this._entries.length) {
+            newIndex = this._entries.length - 1;
         }
 
         this._currentEntry = newIndex;
