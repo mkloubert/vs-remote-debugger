@@ -268,6 +268,51 @@ export interface DebuggerPluginModule {
 }
 
 /**
+ * Arguments for an event that is raised when an entry has been recived.
+ */
+export interface EntryReceivedEventArguments {
+    /**
+     * The unhandled entry.
+     */
+    entry: Buffer;
+
+    /**
+     * The remote machine that has been sended the entry.
+     */
+    remote?: {
+        /**
+         * The address.
+         */
+        address?: string;
+
+        /**
+         * The port.
+         */
+        port?: number;
+    };
+
+    /**
+     * The sending object.
+     */
+    sender?: any;
+}
+
+/**
+ * Describes an error context.
+ */
+export interface ErrorContext {
+    /**
+     * The category / type.
+     */
+    category?: string;
+
+    /**
+     * The error object.
+     */
+    error: any;
+}
+
+/**
  * A friend entry.
  */
 export interface Friend {
@@ -595,6 +640,102 @@ export interface RemoteDebuggerFavorite {
      * The index beginning at 1.
      */
     index: number;
+}
+
+/**
+ * Describes a server.
+ */
+export interface Server {
+    /**
+     * Starts the server.
+     * 
+     * @param {StartServerContext} ctx The context.
+     * 
+     * @return {Promise<ServerStartedEventArguments>} The promise.
+     */
+    start(ctx: StartServerContext): Promise<ServerStartedEventArguments>;
+
+    /**
+     * Stops the server.
+     * 
+     * @param {StopServerContext} ctx The context.
+     * 
+     * @return {Promise<ServerStoppedEventArguments>} The promise.
+     */
+    stop(ctx: StopServerContext): Promise<ServerStoppedEventArguments>;
+}
+
+/**
+ * Describes a server module.
+ */
+export interface ServerModule {
+    /**
+     * Creates a new server instance.
+     * 
+     * @return {Server} The new instance.
+     */
+    create(ctx: DebuggerContext): Server;
+}
+
+/**
+ * The arguments for the event that is raised after a server has been STARTED successfully.
+ */
+export interface ServerStartedEventArguments {
+    /**
+     * The port.
+     */
+    port: number;
+
+    /**
+     * The underlying server instance.
+     */
+    server: Server;
+}
+
+/**
+ * The arguments for the event that is raised after a server has been STOPPED successfully.
+ */
+export interface ServerStoppedEventArguments {
+    /**
+     * The underlying server instance.
+     */
+    server: Server;
+}
+
+/**
+ * Describes a context for STARTING a server.
+ */
+export interface StartServerContext {
+    /**
+     * The server should raise that method when he received the complete data
+     * of an entry successfully.
+     * 
+     * @param {EntryReceivedEventArguments} args The arguments.
+     */
+    entryReceived(args: EntryReceivedEventArguments): void;
+
+    /**
+     * The server can use that method to log something.
+     * 
+     * @param {any} msg The value to log.
+     */
+    log(msg: any): void;
+
+    /**
+     * The maximum size of a debugger message.
+     */
+    maxMessageSize?: number;
+
+    /**
+     * The TCP port to use.
+     */
+    port?: number;
+}
+
+/**
+ * Describes a context for STOPPING a server.
+ */
+export interface StopServerContext {
 }
 
 /**

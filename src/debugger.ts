@@ -29,7 +29,6 @@ import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
-import Net = require('net');
 import OS = require("os");
 import Path = require('path');
 
@@ -38,6 +37,10 @@ import Path = require('path');
  */
 class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
+     * Stores the list of client names.
+     */
+    protected _apps: string[];
+    /**
      * Number of big steps back.
      */
     protected _bigStepBack: number;
@@ -45,6 +48,10 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      * Number of big steps forward.
      */
     protected _bigStepForward: number;
+    /**
+     * Stores the list of client names.
+     */
+    protected _clients: string[];
     /**
      * Stores the console manager.
      */
@@ -98,9 +105,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
      */
     protected _port: number;
     /**
-     * The current server.
+     * Stores the current server.
      */
-    protected _server: Net.Server;
+    protected _server: vsrd_contracts.Server;
     /**
      * The root of the sources / workspace.
      */
@@ -387,6 +394,165 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         else {
             this.sendEvent(new vscode_dbg_adapter.StoppedEvent("pause", 1));
         }
+    }
+
+    /**
+     * Handles a received entry.
+     * 
+     * @param {vsrd_contracts.EntryReceivedEventArguments} [args] The event arguments.
+     */
+    protected handleReceivedEntryData(args?: vsrd_contracts.EntryReceivedEventArguments) {
+        let now = new Date();
+        let me = this;
+        
+        if (!args) {
+            return;
+        }
+
+        let buff = args.entry;
+        if (!buff) {
+            return;
+        }
+
+        let allEntries = me._entries;
+        let allPlugins = me._plugins;
+        let apps = me._apps;
+        let clients = me._clients;
+
+        let remoteAddress: string;
+        let remotePort: number;
+        if (args.remote) {
+            remoteAddress = args.remote.address;
+            remotePort = args.remote.port;
+        }
+
+        // decrypt data
+        let decryptedBuffer = buff;
+        for (let i = 0; i < allPlugins.length; i++) {
+            let plugin = allPlugins[i].plugin;
+
+            if (plugin.restoreMessage) {
+                decryptedBuffer = plugin.restoreMessage(decryptedBuffer);
+            }
+        }
+
+        let json = decryptedBuffer.toString('utf8');
+
+        let entry: vsrd_contracts.RemoteDebuggerEntry = JSON.parse(json);
+        if (!entry) {
+            return;
+        }
+
+        entry.__time = now;
+
+        if (!entry.__origin) {
+            entry.__origin = {
+                address: remoteAddress,
+                port: remotePort,
+                time: now,
+            };
+        }
+
+        // process entry
+        for (let i = 0; i < allPlugins.length; i++) {
+            let plugin = allPlugins[i].plugin;
+
+            if (plugin.processEntry) {
+                if (true === plugin.processEntry(entry)) {
+                    // upcoming plugins should not
+                    // process that entry
+                    break;
+                }
+            }
+        }
+
+        let addEntry = true;
+
+        // paused?
+        if (addEntry && me._isPaused) {
+            addEntry = false;
+        }
+
+        // counter
+        let cnt = me._counter;
+        if (addEntry && false !== cnt) {
+            if (cnt > 0) {
+                me._counter = <number>cnt - 1;
+            }
+            else {
+                me._isPaused = true;
+                me.log(`Counter is ${cnt}. Switched to 'pause' mode!`);
+
+                addEntry = false;
+            }
+        }
+
+        // check for client
+        if (addEntry && entry.c) {
+            let targetClient = ('' + entry.c).toLowerCase().trim();
+            if ('' != targetClient) {
+                if (clients.length > 0) {
+                    addEntry = false;
+                    for (let i = 0; i < clients.length; i++) {
+                        if (clients[i] == targetClient) {
+                            addEntry = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // check for apps
+        if (addEntry && entry.a) {
+            let appName = ('' + entry.a).toLowerCase().trim();
+            if ('' != appName) {
+                if (apps.length > 0) {
+                    addEntry = false;
+                    for (let i = 0; i < apps.length; i++) {
+                        if (apps[i] == appName) {
+                            addEntry = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // filter
+        if (addEntry) {
+            for (let i = 0; i < allPlugins.length; i++) {
+                let plugin = allPlugins[i].plugin;
+
+                if (plugin.dropEntry) {
+                    if (true === plugin.dropEntry(entry)) {
+                        // drop
+                        addEntry = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!addEntry) {
+            return;
+        }
+
+        let makeStep = !me.entry ? true : false;
+        
+        allEntries.push(entry);
+
+        if (me._isDebug) {
+            me.log(`Got entry #${allEntries.length} from '${remoteAddress}:${remotePort}'`);
+        }
+        
+        if (!makeStep) {
+            return;
+        }
+
+        // select last entry
+        me._currentEntry = me._entries.length - 1; 
+        me.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
     }
 
     /** @inheritdoc */
@@ -781,18 +947,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let me = this;
 
-        let port = vsrd_contracts.DEFAULT_PORT;
-        if (opts.port) {
-            port = opts.port;
-        }
-
-        let maxMsgSize = vsrd_contracts.DEFAULT_MAX_MESSAGE_SIZE;
-        if (opts.maxMessageSize) {
-            maxMsgSize = opts.maxMessageSize;
-        }
-
         // clients
-        let clients: string[] = [];
+        me._clients = [];
         if (opts.clients) {
             for (let i = 0; i < opts.clients.length; i++) {
                 let c = opts.clients[i];
@@ -802,13 +958,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 c = ('' + c).toLowerCase().trim();
                 if ('' !== c) {
-                    clients.push(c);
+                    me._clients.push(c);
                 }
             }
         }
 
         // apps
-        let apps: string[] = [];
+        me._apps = [];
         if (opts.apps) {
             for (let i = 0; i < opts.apps.length; i++) {
                 let a = opts.apps[i];
@@ -818,7 +974,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 a = ('' + a).toLowerCase().trim();
                 if ('' !== a) {
-                    apps.push(a);
+                    me._apps.push(a);
                 }
             }
         }
@@ -832,16 +988,6 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         me._counter = me._counterStart;
 
-        let invokeCompleted = (err?: any) => {
-            if (opts.completed) {
-                opts.completed(err);
-            }
-        };
-
-        let showError = (err, category: string) => {
-            me.log('[ERROR :: TCP Server :: ' + category + '] ' + err);
-        };
-
         if (opts.bigSteps) {
             me._bigStepBack = opts.bigSteps.back;
             me._bigStepForward = opts.bigSteps.forward;    
@@ -851,234 +997,45 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         me._isPaused = opts.isPaused ? true : false;
         me._port = undefined;
 
-        let newServer = Net.createServer((socket) => {
-            try {
-                let closeSocket = () => {
-                    try {
-                        socket.destroy();
-                    }
-                    catch (e) {
-                        showError(e, 'createServer.closeSocket');
-                    }
-                };
-
-                let remoteAddr = socket.remoteAddress;
-                let remotePort = socket.remotePort;
-
-                let buff: Buffer;
-
-                let buffOffset = 0;
-                socket.on('data', (data: Buffer) => {
-                    try {
-                        if (!data || data.length < 1) {
-                            return;
-                        }
-
-                        let offset = 0;
-                        if (!buff) {
-                            let dataLength = data.readUInt32LE(0);
-                            if (dataLength < 0 || dataLength > maxMsgSize) {
-                                closeSocket();
-                                return;
-                            }
-
-                            buff = Buffer.alloc(dataLength);
-                            offset = 4;
-                        }
-
-                        // check for possible overflow
-                        let newBufferOffset = buffOffset + data.length;
-                        if (newBufferOffset >= maxMsgSize) {
-                            closeSocket();
-                            return;
-                        }
-
-                        buffOffset += data.copy(buff, buffOffset,
-                                                offset);
-                    }
-                    catch (e) {
-                        showError(e, 'createServer.data');
-
-                        closeSocket();
-                    }
-                });
-
-                socket.on('end', () => {
-                    try {
-                        let now = new Date();
-
-                        if (!buff || buff.length < 1) {
-                            return;
-                        }
-
-                        // decrypt data
-                        let decryptedBuffer = buff;
-                        for (let i = 0; i < me._plugins.length; i++) {
-                            let plugin = me._plugins[i].plugin;
-
-                            if (plugin.restoreMessage) {
-                                decryptedBuffer = plugin.restoreMessage(decryptedBuffer);
-                            }
-                        }
-
-                        let json = decryptedBuffer.toString('utf8');
-
-                        let entry: vsrd_contracts.RemoteDebuggerEntry = JSON.parse(json);
-                        if (!entry) {
-                            return;
-                        }
-
-                        entry.__time = now;
-                        if (!entry.__origin) {
-                            entry.__origin = {
-                                address: socket.remoteAddress,
-                                port: socket.remotePort,
-                                time: now,
-                            };
-                        }
-
-                        // process entry
-                        for (let i = 0; i < me._plugins.length; i++) {
-                            let plugin = me._plugins[i].plugin;
-
-                            if (plugin.processEntry) {
-                                if (true === plugin.processEntry(entry)) {
-                                    // upcoming plugins should not
-                                    // process that entry
-                                    break;
-                                }
-                            }
-                        }
-
-                        let addEntry = true;
-
-                        // paused?
-                        if (addEntry && me._isPaused) {
-                            addEntry = false;
-                        }
-
-                        // counter
-                        let cnt = me._counter;
-                        if (addEntry && false !== cnt) {
-                            if (cnt > 0) {
-                                me._counter = <number>cnt - 1;
-                            }
-                            else {
-                                me._isPaused = true;
-                                me.log(`Counter is ${cnt}. Switched to 'pause' mode!`);
-
-                                addEntry = false;
-                            }
-                        }
-
-                        // check for client
-                        if (addEntry && entry.c) {
-                            let targetClient = ('' + entry.c).toLowerCase().trim();
-                            if ('' != targetClient) {
-                                if (clients.length > 0) {
-                                    addEntry = false;
-                                    for (let i = 0; i < clients.length; i++) {
-                                        if (clients[i] == targetClient) {
-                                            addEntry = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // check for apps
-                        if (addEntry && entry.a) {
-                            let appName = ('' + entry.a).toLowerCase().trim();
-                            if ('' != appName) {
-                                if (apps.length > 0) {
-                                    addEntry = false;
-                                    for (let i = 0; i < apps.length; i++) {
-                                        if (apps[i] == appName) {
-                                            addEntry = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // filter
-                        if (addEntry) {
-                            for (let i = 0; i < me._plugins.length; i++) {
-                                let plugin = me._plugins[i].plugin;
-
-                                if (plugin.dropEntry) {
-                                    if (true === plugin.dropEntry(entry)) {
-                                        // drop
-                                        addEntry = false;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        if (!addEntry) {
-                            return;
-                        }
-
-                        let makeStep = !me.entry ? true : false;
-                        
-                        me._entries.push(entry);
-
-                        if (me._isDebug) {
-                            me.log(`Got entry #${me._entries.length} from '${remoteAddr}:${remotePort}'`);
-                        }
-                        
-                        if (!makeStep) {
-                            return;
-                        }
-
-                        // select last entry
-                        me._currentEntry = me._entries.length - 1;
-                        me.sendEvent(new vscode_dbg_adapter.StoppedEvent("step", 1));
-                    }
-                    catch (e) {
-                        showError(e, 'createServer.end');
-                    }
-                });
-            }
-            catch (e) {
-                showError(e, "createServer");
-            }
-        });
-
-        newServer.on('listening', (err) => {
-            if (!err) {
-                me._server = newServer;
-
-                me._port = port;
-                me.log('TCP server started on port ' + port);
-
-                if (apps.length > 0) {
-                    me.log('App filters: ' + apps.join(', '));
+        let ctx: vsrd_contracts.StartServerContext = {
+            entryReceived: (args) => {
+                try {
+                    me.handleReceivedEntryData(args);
                 }
-                
-                if (clients.length > 0) {
-                    me.log('Client filters: ' + clients.join(', '));
+                catch (e) {
+                    me.log('[ERROR] Could not handle entry: ' + e);
                 }
+            },
+            log: (m) => me.log(m),
+            maxMessageSize: opts.maxMessageSize,
+            port: opts.port,
+        };
 
-                if (me._isPaused) {
-                    me.log('PAUSED');
-                }
-            }
-            else {
-                showError(err, "listening");
-            }
+        const srvModule: vsrd_contracts.ServerModule = require('./servers/tcp');
 
-            invokeCompleted(err);
-        });
-        newServer.on('error', (err) => {
-            if (err) {
-                showError(err, "error");
-            }
-        });
-        newServer.listen(port);
+        let srv: vsrd_contracts.Server = srvModule.create(me._context);
+        srv.start(ctx)
+           .then((args) => {
+                     me._port = args.port;
+                     me._server = args.server;
+
+                     me.log(`Server started on port ${args.port}`);
+
+                     if (me._apps.length > 0) {
+                         me.log('App filters: ' + me._apps.join(', '));
+                     }
+                    
+                     if (me._clients.length > 0) {
+                         me.log('Client filters: ' + me._clients.join(', '));
+                     }
+
+                     if (me._isPaused) {
+                         me.log('PAUSED');
+                     }
+                 },
+                 (err: vsrd_contracts.ErrorContext) => {
+                     me.log(`[ERROR] Could not start server on port ${opts.port}: ` + err.error);
+                 });   
     }
 
     /** @inheritdoc */
@@ -1121,24 +1078,16 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 			return;
 		}
 
-		let showError = (err, category: string) => {
-            me.log('[ERROR :: TCP Server :: ' + category + '] ' + err);
+        let ctx = {
         };
 
-		try {
-			srv.close(function(err) {
-				if (err) {
-					showError(err, "close");
-					return;
-				}
-
-				me._server = null;
-				me.log('TCP server has stopped.');
-			});
-		}
-		catch (e) {
-			showError(e, "close");
-		}
+        srv.stop(ctx)
+           .then((args) => {
+                     me.log('TCP server has stopped');
+                 },
+                 (err: vsrd_contracts.ErrorContext) => {
+                     me.log('[ERROR] Could not stop server: ' + err.error);
+                 });
     }
     
     /** @inheritdoc */
