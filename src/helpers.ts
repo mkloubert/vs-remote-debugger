@@ -21,6 +21,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import Net = require('net');
+
 /**
  * Returns the similarity of strings.
  * 
@@ -134,4 +136,35 @@ export function normalizeString(str: any): string {
     }
 
     return str;
+}
+
+/**
+ * Reads a number of bytes from a socket.
+ * 
+ * @param {Net.Socket} socket The socket.
+ * @param {Number} numberOfBytes The amount of bytes to read.
+ * 
+ * @return {Promise<Buffer>} The promise.
+ */
+export function readSocket<T>(socket: Net.Socket, numberOfBytes: number, tag?: T): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+        try {
+            let buff: Buffer = socket.read(numberOfBytes);
+            if (null === buff) {
+                socket.once('readable', function() {
+                    readSocket(socket, numberOfBytes).then((b) => {
+                        resolve(b);
+                    }, (err) => {
+                        reject(err);
+                    });
+                });
+            }
+            else {
+                resolve(buff);
+            }
+        }
+        catch (e) {
+            reject(e);
+        }
+    });
 }

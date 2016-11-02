@@ -24,8 +24,8 @@
 // DEALINGS IN THE SOFTWARE.
 
 import * as vsrd_contracts from '../contracts';
+import * as vsrd_helpers from '../helpers';
 import Net = require('net');
-
 
 /**
  * A TCP based server.
@@ -83,6 +83,9 @@ class TcpServer implements vsrd_contracts.Server {
             try {
                 let newServer = Net.createServer((socket) => {
                     try {
+                        let remoteAddr = socket.remoteAddress;
+                        let remotePort = socket.remotePort;
+
                         let closeSocket = () => {
                             try {
                                 socket.destroy();
@@ -92,52 +95,24 @@ class TcpServer implements vsrd_contracts.Server {
                             }
                         };
 
-                        let remoteAddr = socket.remoteAddress;
-                        let remotePort = socket.remotePort;
-
-                        let buff: Buffer;
-
-                        let buffOffset = 0;
-                        socket.on('data', (data: Buffer) => {
-                            try {
-                                if (!data || data.length < 1) {
-                                    return;
-                                }
-
-                                let offset = 0;
-                                if (!buff) {
-                                    let dataLength = data.readUInt32LE(0);
-                                    if (dataLength < 0 || dataLength > maxMsgSize) {
-                                        closeSocket();
-                                        return;
-                                    }
-
-                                    buff = Buffer.alloc(dataLength);
-                                    offset = 4;
-                                }
-
-                                // check for possible overflow
-                                let newBufferOffset = buffOffset + data.length;
-                                if (newBufferOffset >= maxMsgSize) {
-                                    closeSocket();
-                                    return;
-                                }
-
-                                buffOffset += data.copy(buff, buffOffset,
-                                                        offset);
-                            }
-                            catch (e) {
-                                showError(e, 'createServer.data');
-
+                        // first read dataLength
+                        vsrd_helpers.readSocket(socket, 4).then((dlBuff) => {
+                            if (4 != dlBuff.length) {  // must have the size of 4
                                 closeSocket();
+                                return;
                             }
-                        });
 
-                        socket.on('end', () => {
-                            try {
-                                let now = new Date();
+                            let dataLength = dlBuff.readUInt32LE(0);
+                            if (dataLength < 0 || dataLength > maxMsgSize) {  // out of range
+                                closeSocket();
+                                return;
+                            }
 
-                                if (!buff || buff.length < 1) {
+                            // now read the debugger message
+                            vsrd_helpers.readSocket(socket, dataLength).then((buff) => {
+                                closeSocket();
+                                
+                                if (buff.length != dataLength) {  // non-exptected data length
                                     return;
                                 }
 
@@ -149,13 +124,21 @@ class TcpServer implements vsrd_contracts.Server {
                                     },
                                     sender: me,
                                 });
-                            }
-                            catch (e) {
-                                showError(e, 'createServer.end');
-                            }
+                            }, (err) => {
+                                // could not read debugger message
+
+                                showError(err, "createServer.readSocket(2)");
+                                closeSocket();
+                            });
+                        }, (err) => {
+                            // could not read dataLength
+
+                            showError(err, "createServer.readSocket(1)");
+                            closeSocket();
                         });
                     }
                     catch (e) {
+                        // fatal error
                         showError(e, "createServer");
                     }
                 });
