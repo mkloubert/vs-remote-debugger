@@ -1013,6 +1013,12 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         const srvModule: vsrd_contracts.ServerModule = require('./servers/tcp');
 
+        let completed = () => {
+            if (opts.completed) {
+                opts.completed();
+            }
+        };
+
         let srv: vsrd_contracts.Server = srvModule.create(me._context);
         srv.start(ctx)
            .then((args) => {
@@ -1032,9 +1038,13 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                      if (me._isPaused) {
                          me.log('PAUSED');
                      }
+
+                     completed();
                  },
                  (err: vsrd_contracts.ErrorContext) => {
                      me.log(`[ERROR] Could not start server on port ${opts.port}: ` + err.error);
+
+                     completed();
                  });   
     }
 

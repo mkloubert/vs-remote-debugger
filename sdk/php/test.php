@@ -41,7 +41,7 @@ function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
         'G' => true,
     ]);
 
-    $debugger->dbgIf(function($evetData) { return false; }, [
+    $debugger->dbgIf(function($eventData) { return false; }, [
         'AA' => date('Y-m-d H:i:s'),
         'BB' => 1,
         'CC' => 2.34,

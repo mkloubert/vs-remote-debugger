@@ -119,6 +119,12 @@ class RemoteDebugger {
      */
     public $MaxDepth;
     /**
+     * A custom callable that is used to send the data.
+     *
+     * @var callable
+     */
+    public $Sender;
+    /**
      * The path of the script root or the callable that provides it.
      *
      * @var callable|string
@@ -276,6 +282,44 @@ class RemoteDebugger {
                 $errHandler($type, $err, $eventData);
             }
         };
+
+        $sender = $this->Sender;
+        if (!$sender) {
+            // use default
+
+            $sender = function($json, $eventData, $errorHandler) {
+                $connData = $eventData['host'];
+
+                $fp = @\fsockopen($connData[0], $connData[1], $errno, $errstr, $connData[2]);
+                if (\is_resource($fp)) {
+                    try {
+                        if (false !== @\fwrite($fp, \pack('V', \strlen($json)))) {
+                            if (false === @\fwrite($fp, $json)) {
+                                // could not send JSON
+                                $errorHandler('send.json',
+                                              @\error_get_last(),
+                                              $eventData);
+                            }
+                        }
+                        else {
+                            // could not send data length
+                            $errorHandler('send.datalength',
+                                          @\error_get_last(),
+                                          $eventData);
+                        }
+                    }
+                    finally {
+                        @\fclose($fp);
+                    }
+                }
+                else {
+                    // connection error
+                    $errorHandler('connection',
+                                  [$errno, $errstr],
+                                  $eventData);
+                }
+            };
+        }
 
         foreach ($this->_hostProviders as $providerIndex => $provider) {
             $connData = $provider($this);
@@ -530,34 +574,7 @@ class RemoteDebugger {
                 // echo @\json_encode($entry, JSON_PRETTY_PRINT);
 
                 if (false !== $json) {
-                    $fp = @\fsockopen($connData[0], $connData[1], $errno, $errstr, $connData[2]);
-                    if (\is_resource($fp)) {
-                        try {
-                            if (false !== @\fwrite($fp, \pack('V', \strlen($json)))) {
-                                if (false === @\fwrite($fp, $json)) {
-                                    // could not send JSON
-                                    $handleError('send.json',
-                                                 @\error_get_last(),
-                                                 $eventData);
-                                }
-                            }
-                            else {
-                                // could not send data length
-                                $handleError('send.datalength',
-                                             @\error_get_last(),
-                                             $eventData);
-                            }
-                        }
-                        finally {
-                            @\fclose($fp);
-                        }
-                    }
-                    else {
-                        // connection error
-                        $handleError('connection',
-                                     [$errno, $errstr],
-                                     $eventData);
-                    }
+                    $sender($json, $eventData, $handleError);
                 }
                 else {
                     // JSON error
