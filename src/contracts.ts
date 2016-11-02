@@ -75,6 +75,16 @@ export interface DebuggerPlugin {
     commands?: () => string[];
 
     /**
+     * Checks if an incoming entry should be dropped or not.
+     * 
+     * @param {RemoteDebuggerEntry} entry The entry to check.
+     * 
+     * @param {boolean} The entry will be dropped if (true) is returned; otherwise
+     *                  it will be added to list.
+     */
+    dropEntry?: (entry: RemoteDebuggerEntry) => any;
+
+    /**
      * Executes a command.
      * 
      * @param {DebuggerPluginExecutionContext} ctx The execution context.
@@ -82,16 +92,6 @@ export interface DebuggerPlugin {
      * @return {any} The result of the command that should be displayed in the debug console.
      */
     execute?: (ctx: DebuggerPluginExecutionContext) => any;
-
-    /**
-     * Checks if an incoming entry should be dropped or not.
-     * 
-     * @param {RemoteDebuggerEntry} entry The entry to check.
-     * 
-     * @param {boolean} The entry will be dropped if (false) is returned; otherwise
-     *                  it will be added to list.
-     */
-    filterEntry?: (entry: RemoteDebuggerEntry) => any;
 
     /**
      * Returns information about that plugin.

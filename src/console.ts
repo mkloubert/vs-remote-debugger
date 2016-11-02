@@ -1643,8 +1643,8 @@ export class ConsoleManager {
                         
                         implementedFeatures.push('E');
                     }
-                    if (p.filterEntry) {
-                        implementedFeatures.push('FE');
+                    if (p.dropEntry) {
+                        implementedFeatures.push('DE');
                     }
                     if (p.processEntry) {
                         implementedFeatures.push('PE');
@@ -1686,12 +1686,12 @@ export class ConsoleManager {
                 output += "*\n";
                 t = new Table();
                 {
+                    t.cell('Feature', 'DE');
+                    t.cell('Description', 'Checks if an incoming entry should be dropped');
+                    t.newRow();
+                    
                     t.cell('Feature', 'E');
                     t.cell('Description', 'Can execute commands');
-                    t.newRow();
-
-                    t.cell('Feature', 'FE');
-                    t.cell('Description', 'Filters incoming entries');
                     t.newRow();
 
                     t.cell('Feature', 'PE');

@@ -1008,8 +1008,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             for (let i = 0; i < me._plugins.length; i++) {
                                 let plugin = me._plugins[i].plugin;
 
-                                if (plugin.filterEntry) {
-                                    if (false === plugin.filterEntry(entry)) {
+                                if (plugin.dropEntry) {
+                                    if (true === plugin.dropEntry(entry)) {
                                         // drop
                                         addEntry = false;
                                         break;
