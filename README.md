@@ -54,7 +54,7 @@ And start debugging:
 
 ### PHP
 
-Install the [RemoteDebugger.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) in your application.
+Install the [RemoteDebugger.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/src/MJK/Diagnostics/RemoteDebugger.php) in your application.
 
 A common way is to use [Composer](https://getcomposer.org/) to install anything via [Packagist.org](https://packagist.org/packages/mkloubert/vs-remote-debugger):
 
@@ -121,7 +121,7 @@ Look at the following interfaces in the [contracts.ts](https://github.com/mkloub
 | RemoteDebuggerScope | A scope of a stack frame. |
 | RemoteDebuggerVariable | A variable. |
 
-Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
+Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/src/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
 
 
 If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/tests/test.php) script from the PHP SDK, a possible message can look like this:
