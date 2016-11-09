@@ -9,7 +9,7 @@
             "email": "marcel.kloubert@gmx.net"
         }
     ],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "require": {
         "php": ">=5.5.0"
     },
