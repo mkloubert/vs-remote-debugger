@@ -56,7 +56,13 @@ And start debugging:
 
 Install the [RemoteDebugger.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) in your application.
 
-If you look at the [example code](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/test1.inc.php) you can see how the class can be used:
+A common way is to use [Composer](https://getcomposer.org/) to install anything via [Packagist.org](https://packagist.org/packages/mkloubert/vs-remote-debugger):
+
+```bash
+composer require mkloubert/vs-remote-debugger
+```
+
+If you look at the [example code](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/tests/test1.inc.php) you can see how the class can be used:
 
 ```php
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
@@ -117,7 +123,8 @@ Look at the following interfaces in the [contracts.ts](https://github.com/mkloub
 
 Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/classes/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
 
-If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/test.php) script from the PHP SDK, a possible message can look like this:
+
+If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/tests/test.php) script from the PHP SDK, a possible message can look like this:
 
 * [example.json](https://github.com/mkloubert/vs-remote-debugger/blob/master/example.json)
 
