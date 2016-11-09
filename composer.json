@@ -15,7 +15,7 @@
     },
     "autoload": {
         "psr-0": {
-            "MJK\\Diagnostics": "src/"
+            "MJK\\Diagnostics": "sdk/php/src/"
         }
     }
 }
