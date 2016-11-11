@@ -177,12 +177,12 @@ export interface ExecuteCommandResult {
     /**
      * Gets or sets the list of entries.
      */
-    entries(entries?: vsrd_contracts.RemoteDebuggerEntry[]): vsrd_contracts.Enumerable<vsrd_contracts.RemoteDebuggerEntry>;
+    entries(entries?: vsrd_contracts.RemoteDebuggerEntry[]): vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerEntry>;
 
     /**
      * Gets or sets the list of favorites.
      */
-    favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.Enumerable<vsrd_contracts.RemoteDebuggerFavorite>;
+    favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerFavorite>;
 
     /**
      * Gets the format that is used to generate names for message files.
@@ -192,7 +192,7 @@ export interface ExecuteCommandResult {
     /**
      * Gets the list of friends.
      */
-    friends(): vsrd_contracts.Friend[];
+    friends(): vsrd_contracts.Collection<vsrd_contracts.Friend>;
 
     /**
      * Jumps to a specific entry.
@@ -1209,7 +1209,7 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_last(result: ExecuteCommandResult): void {
-        let newIndex = result.entries().count() - 1;
+        let newIndex = result.entries().length - 1;
             
         result.body(`New index: ${newIndex + 1}`);
         result.sendResponse();
@@ -2198,7 +2198,7 @@ export class ConsoleManager {
                 }
             }
             else {
-                friends = allFriends;
+                friends = allFriends.toArray();
             }
 
             if (friends.length > 0) {

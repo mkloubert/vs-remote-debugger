@@ -76,11 +76,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded entries.
      */
-    protected _entries: vsrd_contracts.RemoteDebuggerEntry[] = [];
+    protected _entries: vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerEntry> = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerEntry>();
     /**
      * Stores the list of favorites.
      */
-    protected _favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+    protected _favorites: vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerFavorite> = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerFavorite>();
     /**
      * Stores the format that is used to generate names for message files.
      */
@@ -88,7 +88,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of friends.
      */
-    protected _friends: vsrd_contracts.Friend[];
+    protected _friends: vsrd_contracts.Collection<vsrd_contracts.Friend> = new vsrd_objects.ArrayCollection<vsrd_contracts.Friend>();
     /**
      * Stores if debug mode is enabled or not.
      */
@@ -100,7 +100,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded plugins.
      */
-    protected _plugins: vsrd_contracts.DebuggerPluginEntry[];
+    protected _plugins: vsrd_contracts.Collection<vsrd_contracts.DebuggerPluginEntry> = new vsrd_objects.ArrayCollection<vsrd_contracts.DebuggerPluginEntry>();
     /**
      * Stores the port the server is currently running on.
      */
@@ -219,17 +219,17 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 },
                 entries: function(e?) {
                     if (arguments.length > 0) {
-                        me._entries = e;
+                        me._entries = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerEntry>();
                     }
 
-                    return new vsrd_objects.ArrayEnumerable(me._entries);
+                    return me._entries;
                 },
                 favorites: function(f?) {
                     if (arguments.length > 0) {
-                        me._favorites = f;
+                        me._favorites = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerFavorite>();
                     }
 
-                    return new vsrd_objects.ArrayEnumerable(me._favorites);
+                    return me._favorites;
                 },
                 filenameFormat: () => me._filenameFormat,
                 friends: () => me._friends,
@@ -591,20 +591,20 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         this._context = {
             entries: function(e?) {
                 if (arguments.length > 0) {
-                    me._entries = e;
+                    me._entries = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerEntry>();
                 }
 
-                return new vsrd_objects.ArrayEnumerable(me._entries);
+                return me._entries;
             },
             favorites: function(f?) {
                 if (arguments.length > 0) {
-                    me._favorites = f;
+                    me._favorites = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerFavorite>();
                 }
 
-                return new vsrd_objects.ArrayEnumerable(me._favorites);
+                return me._favorites;
             },
             nick: () => nickname,
-            plugins: () => new vsrd_objects.ArrayEnumerable(me._plugins),
+            plugins: () => me._plugins,
             port: () => me._port,
             session: me,
         };
@@ -688,7 +688,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected reloadFriendList(friends?: string[]) {
         let me = this;
 
-        me._friends = [];
+        me._friends = new vsrd_objects.ArrayCollection<vsrd_contracts.Friend>();
 
         if (!friends) {
             return;
@@ -773,7 +773,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected reloadPlugins(plugins?: string[]) {
         let me = this;
 
-        me._plugins = [];
+        me._plugins = new vsrd_objects.ArrayCollection<vsrd_contracts.DebuggerPluginEntry>();
 
         let loadedPlugins: string[] = [];
         let finish = () => {

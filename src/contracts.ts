@@ -54,12 +54,12 @@ export interface DebuggerContext {
     /**
      * Gets or sets the list of entries.
      */
-    entries(entries?: RemoteDebuggerEntry[]): Enumerable<RemoteDebuggerEntry>;
+    entries(entries?: RemoteDebuggerEntry[]): Collection<RemoteDebuggerEntry>;
 
     /**
      * Gets or sets the list of favorites.
      */
-    favorites(favorites?: RemoteDebuggerFavorite[]): Enumerable<RemoteDebuggerFavorite>;
+    favorites(favorites?: RemoteDebuggerFavorite[]): Collection<RemoteDebuggerFavorite>;
 
     /**
      * Gets the nickname.
@@ -69,7 +69,7 @@ export interface DebuggerContext {
     /**
      * Returns the list of plugins.
      */
-    plugins(): Enumerable<DebuggerPluginEntry>;
+    plugins(): Collection<DebuggerPluginEntry>;
 
     /**
      * Gets the port the server is currently running on.
