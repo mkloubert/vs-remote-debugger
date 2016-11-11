@@ -25,6 +25,7 @@
 
 import * as vsrd_console from './console';
 import * as vsrd_contracts from './contracts';
+import * as vsrd_objects from './objects';
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
 import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
@@ -221,14 +222,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                         me._entries = e;
                     }
 
-                    return me._entries;
+                    return new vsrd_objects.ArrayEnumerable(me._entries);
                 },
                 favorites: function(f?) {
                     if (arguments.length > 0) {
                         me._favorites = f;
                     }
 
-                    return me._favorites;
+                    return new vsrd_objects.ArrayEnumerable(me._favorites);
                 },
                 filenameFormat: () => me._filenameFormat,
                 friends: () => me._friends,
@@ -593,18 +594,17 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     me._entries = e;
                 }
 
-                return me._entries;
+                return new vsrd_objects.ArrayEnumerable(me._entries);
             },
             favorites: function(f?) {
                 if (arguments.length > 0) {
                     me._favorites = f;
                 }
 
-                return me._favorites;
+                return new vsrd_objects.ArrayEnumerable(me._favorites);
             },
-            friends: () => me._friends,
             nick: () => nickname,
-            plugins: () => me._plugins,
+            plugins: () => new vsrd_objects.ArrayEnumerable(me._plugins),
             port: () => me._port,
             session: me,
         };

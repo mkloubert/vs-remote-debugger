@@ -26,23 +26,40 @@
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 /**
+ * A collection of items.
+ */
+export interface Collection<T> extends Enumerable<T> {
+    /**
+     * Clears the collection.
+     */
+    clear(): void;
+
+    /**
+     * Gets the number of elements of that class.
+     */
+    readonly length: number;
+    
+    /**
+     * Adds a new element.
+     * 
+     * @param {T} item The item to add.
+     */
+    push(item: T): void;
+}
+
+/**
  * Describes a debugger context.
  */
 export interface DebuggerContext {
     /**
      * Gets or sets the list of entries.
      */
-    entries(entries?: RemoteDebuggerEntry[]): RemoteDebuggerEntry[];
+    entries(entries?: RemoteDebuggerEntry[]): Enumerable<RemoteDebuggerEntry>;
 
     /**
      * Gets or sets the list of favorites.
      */
-    favorites(favorites?: RemoteDebuggerFavorite[]): RemoteDebuggerFavorite[];
-
-    /**
-     * Gets the list of friends.
-     */
-    friends(): Friend[];
+    favorites(favorites?: RemoteDebuggerFavorite[]): Enumerable<RemoteDebuggerFavorite>;
 
     /**
      * Gets the nickname.
@@ -52,7 +69,7 @@ export interface DebuggerContext {
     /**
      * Returns the list of plugins.
      */
-    plugins(): DebuggerPluginEntry[];
+    plugins(): Enumerable<DebuggerPluginEntry>;
 
     /**
      * Gets the port the server is currently running on.
@@ -265,6 +282,38 @@ export interface DebuggerPluginModule {
      * @param {DebuggerPlugin} The new instance.
      */
     create?: (ctx: DebuggerContext, config: string) => DebuggerPlugin; 
+}
+
+/**
+ * A sequence of items.
+ */
+export interface Enumerable<T> {
+    /**
+     * Counts the items of the sequence.
+     */
+    count(): number;
+
+    /**
+     * Gets the current item.
+     */
+    current: T;
+
+    /**
+     * Tries to move to the next item.
+     * 
+     * @return {boolean} Next item reached (true) or EOF (false).
+     */
+    moveNext(): boolean;
+
+    /**
+     * Resets the enumerator.
+     */
+    reset(): void;
+
+    /**
+     * Creates a new array from the sequence.
+     */
+    toArray(): T[];
 }
 
 /**

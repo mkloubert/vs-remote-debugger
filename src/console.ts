@@ -177,12 +177,12 @@ export interface ExecuteCommandResult {
     /**
      * Gets or sets the list of entries.
      */
-    entries(entries?: vsrd_contracts.RemoteDebuggerEntry[]): vsrd_contracts.RemoteDebuggerEntry[];
+    entries(entries?: vsrd_contracts.RemoteDebuggerEntry[]): vsrd_contracts.Enumerable<vsrd_contracts.RemoteDebuggerEntry>;
 
     /**
      * Gets or sets the list of favorites.
      */
-    favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.RemoteDebuggerFavorite[];
+    favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.Enumerable<vsrd_contracts.RemoteDebuggerFavorite>;
 
     /**
      * Gets the format that is used to generate names for message files.
@@ -334,8 +334,8 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_add(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
-        let favorites = result.favorites();
+        let entries = result.entries().toArray();
+        let favorites = result.favorites().toArray();
 
         let listOfRanges = match[2];
         if (listOfRanges) {
@@ -426,7 +426,7 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_all(result: ExecuteCommandResult): void {
-        let entries = result.entries();
+        let entries = result.entries().toArray();
         
         let favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
         for (let i = 0; i < entries.length; i++) {
@@ -597,7 +597,7 @@ export class ConsoleManager {
             }
 
             let executedCommands = 0;
-            let plugins = me._context.plugins();
+            let plugins = me._context.plugins().toArray();
             for (let i = 0; i < plugins.length; i++) {
                 let p = plugins[i].plugin;
                 if (p.commands && p.execute) {
@@ -726,7 +726,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_favs(result: ExecuteCommandResult, me: ConsoleManager): void {
-        let favorites = result.favorites();
+        let favorites = result.favorites().toArray();
         let totalCount = 0;
         
         let entriesToDisplay: DisplayableEntry[] = [];
@@ -774,7 +774,7 @@ export class ConsoleManager {
                         try {
                             let findRes: VariableFinderResult;
 
-                            let entries = result.entries();
+                            let entries = result.entries().toArray();
                             if (entries.length > 0) {
                                 ++me._currentFindIndex;
                                 if (me._currentFindIndex >= entries.length) {
@@ -1126,7 +1126,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_history(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
+        let entries = result.entries().toArray();
 
         let listOfRanges =  vsrd_helpers.normalizeString(match[2]);
 
@@ -1209,7 +1209,7 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_last(result: ExecuteCommandResult): void {
-        let newIndex = result.entries().length - 1;
+        let newIndex = result.entries().count() - 1;
             
         result.body(`New index: ${newIndex + 1}`);
         result.sendResponse();
@@ -1225,7 +1225,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying manager.
      */
     protected cmd_list(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
+        let entries = result.entries().toArray();
 
         let itemsToSkip: number = 0;
         if (match[3]) {
@@ -1268,7 +1268,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_load(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
+        let entries = result.entries().toArray();
         let file = vsrd_helpers.normalizeString(match[2]);
 
         let finish = () => {
@@ -1480,7 +1480,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying manager.
      */
     protected cmd_new(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
+        let entries = result.entries().toArray();
 
         let itemsToSkip: number = 0;
         if ('' != match[3]) {
@@ -1587,7 +1587,7 @@ export class ConsoleManager {
      */
     protected cmd_plugins(result: ExecuteCommandResult, me: ConsoleManager): void {
         try {
-            let plugins = me._context.plugins();
+            let plugins = me._context.plugins().toArray();
 
             if (plugins.length > 0) {
                 let output = '';
@@ -1764,7 +1764,7 @@ export class ConsoleManager {
                         try {
                             let findRes: VariableFinderResult;
 
-                            let entries = result.entries();
+                            let entries = result.entries().toArray();
                             if (entries.length > 0) {
                                 ++me._currentFindIndex;
                                 if (me._currentFindIndex >= entries.length) {
@@ -1845,8 +1845,8 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_remove(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.favorites();
-        let favorites = result.favorites();
+        let entries = result.favorites().toArray();
+        let favorites = result.favorites().toArray();
 
         let listOfRanges = match[2];
         if (listOfRanges) {
@@ -1955,7 +1955,7 @@ export class ConsoleManager {
     protected cmd_save(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
         let now = new Date();
         
-        let favorites = result.favorites();
+        let favorites = result.favorites().toArray();
         
         let file = vsrd_helpers.normalizeString(match[2]);
 
@@ -2086,7 +2086,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying manager.
      */
     protected cmd_send(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let favs = result.favorites();
+        let favs = result.favorites().toArray();
         
         let host = match[3].toLowerCase().trim();
     
@@ -2168,7 +2168,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_share(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let favs = result.favorites();
+        let favs = result.favorites().toArray();
         if (favs.length > 0) {
             let listOfFriends = match[3].trim();
 
@@ -2259,7 +2259,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_sort(result: ExecuteCommandResult, me: ConsoleManager): void {
-        let entries = result.entries().sort((x, y) => {
+        let entries = result.entries().toArray().sort((x, y) => {
             let sortX = me.toDateString(x.__time);
             let sortY = me.toDateString(y.__time);
 
@@ -2327,8 +2327,8 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_trim(result: ExecuteCommandResult): void {
-        let entries = result.entries();
-        let favorites = result.favorites();
+        let entries = result.entries().toArray();
+        let favorites = result.favorites().toArray();
 
         // find entries that are marked as favorites
         let newEntries: vsrd_contracts.RemoteDebuggerEntry[] = [];
@@ -2395,7 +2395,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_unset(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
+        let entries = result.entries().toArray();
 
         let listOfRanges = vsrd_helpers.normalizeString(match[2]);
         
@@ -2895,10 +2895,10 @@ export class ConsoleManager {
 
             try {
                 let json = new Buffer(JSON.stringify(entry),
-                                    'utf8');
+                                      'utf8');
 
                 // prepare JSON data
-                let plugins = me._context.plugins();
+                let plugins = me._context.plugins().toArray();
                 for (let i = plugins.length - 1; i >= 0; i--) {
                     let p = plugins[i].plugin;
 
