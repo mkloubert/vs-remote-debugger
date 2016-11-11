@@ -116,6 +116,7 @@
   "dependencies": {
     "easy-table": "^1.0.0",
     "opn": "^4.0.2",
+    "temp": "^0.8.3",
     "vscode-debugadapter": "^1.11.0",
     "vscode-debugprotocol": "^1.11.0"
   },
@@ -147,8 +148,5 @@
   },
   "homepage": "https://github.com/mkloubert/vs-remote-debugger",
   "readmeFilename": "README.md",
-  "license": {
-    "type": "MIT",
-    "url": "https://github.com/mkloubert/vs-remote-debugger/blob/master/LICENSE"
-  }
+  "license": "MIT"
 }

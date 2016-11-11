@@ -42,9 +42,16 @@ export interface Collection<T> extends Enumerable<T> {
     /**
      * Adds a new element.
      * 
-     * @param {T} item The item to add.
+     * @param {T} [item] The item to add.
      */
-    push(item: T): void;
+    push(item?: T): void;
+
+    /**
+     * Adds a list of items by array.
+     * 
+     * @param {T[]} [items] The items to add.
+     */
+    pushArray(items?: T[]): void;
 }
 
 /**
@@ -285,9 +292,30 @@ export interface DebuggerPluginModule {
 }
 
 /**
+ * Describes an object that can be disposed.
+ */
+export interface Disposable {
+    /**
+     * Disposes the object.
+     */
+    dispose(): void;
+}
+
+/**
+ * A disposable collection.
+ */
+export interface DisposableCollection<T> extends Collection<T>, Disposable {
+}
+
+/**
  * A sequence of items.
  */
 export interface Enumerable<T> {
+    /**
+     * Clones the sequence.
+     */
+    clone(): Enumerable<T>;
+
     /**
      * Counts the items of the sequence.
      */
@@ -314,6 +342,11 @@ export interface Enumerable<T> {
      * Creates a new array from the sequence.
      */
     toArray(): T[];
+
+    /**
+     * Creates a new array of ALL elements from the sequence.
+     */
+    toArrayAll(): T[];
 }
 
 /**

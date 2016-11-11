@@ -76,11 +76,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded entries.
      */
-    protected _entries: vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerEntry> = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerEntry>();
+    protected _entries: vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry> = new vsrd_objects.JsonFileCollection<vsrd_contracts.RemoteDebuggerEntry>();
     /**
      * Stores the list of favorites.
      */
-    protected _favorites: vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerFavorite> = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerFavorite>();
+    protected _favorites: vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerFavorite> = new vsrd_objects.JsonFileCollection<vsrd_contracts.RemoteDebuggerFavorite>();
     /**
      * Stores the format that is used to generate names for message files.
      */
@@ -88,7 +88,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of friends.
      */
-    protected _friends: vsrd_contracts.Collection<vsrd_contracts.Friend> = new vsrd_objects.ArrayCollection<vsrd_contracts.Friend>();
+    protected _friends: vsrd_contracts.Friend[] = [];
     /**
      * Stores if debug mode is enabled or not.
      */
@@ -100,7 +100,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded plugins.
      */
-    protected _plugins: vsrd_contracts.Collection<vsrd_contracts.DebuggerPluginEntry> = new vsrd_objects.ArrayCollection<vsrd_contracts.DebuggerPluginEntry>();
+    protected _plugins: vsrd_contracts.DebuggerPluginEntry[] = [];
     /**
      * Stores the port the server is currently running on.
      */
@@ -150,12 +150,25 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     public get entry(): vsrd_contracts.RemoteDebuggerEntry {
         // this.log('entry');
 
-        var ce = this._currentEntry;
-        if (ce < 0 || ce >= this._entries.length) {
-            return;
+        let e: vsrd_contracts.RemoteDebuggerEntry;
+
+        let ce = this._currentEntry;
+        if (ce >= 0) {
+            let entries = this._entries.clone();
+
+            let i = -1;
+            while (entries.moveNext()) {
+                ++i;
+
+                if (i == ce) {
+                    e = entries.current;
+
+                    break;
+                }
+            }
         }
 
-        return this._entries[ce];
+        return e;
     }
 
     /** @inheritdoc */
@@ -219,20 +232,22 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 },
                 entries: function(e?) {
                     if (arguments.length > 0) {
-                        me._entries = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerEntry>();
+                        me._entries.clear();
+                        me._entries.pushArray(e);
                     }
 
-                    return me._entries;
+                    return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry>>me._entries.clone();
                 },
                 favorites: function(f?) {
                     if (arguments.length > 0) {
-                        me._favorites = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerFavorite>();
+                        me._favorites.clear();
+                        me._favorites.pushArray(f);
                     }
 
-                    return me._favorites;
+                    return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerFavorite>>me._favorites.clone();
                 },
                 filenameFormat: () => me._filenameFormat,
-                friends: () => me._friends,
+                friends: () => new vsrd_objects.ArrayCollection(me._friends),
                 gotoIndex: function(newIndex?: number, response?: DebugProtocol.EvaluateResponse) {
                     if (arguments.length < 1) {
                         me.gotoIndex();
@@ -415,7 +430,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             return;
         }
 
-        let allEntries = me._entries;
+        let allEntries = <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry>>me._entries.clone();
         let allPlugins = me._plugins;
         let apps = me._apps;
         let clients = me._clients;
@@ -591,20 +606,22 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         this._context = {
             entries: function(e?) {
                 if (arguments.length > 0) {
-                    me._entries = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerEntry>();
+                    me._entries.clear();
+                    me._entries.pushArray(e);
                 }
 
-                return me._entries;
+                return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry>>me._entries.clone();
             },
             favorites: function(f?) {
                 if (arguments.length > 0) {
-                    me._favorites = new vsrd_objects.ArrayCollection<vsrd_contracts.RemoteDebuggerFavorite>();
+                    me._favorites.clear();
+                    me._favorites.pushArray(f);
                 }
 
-                return me._favorites;
+                return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerFavorite>>me._favorites.clone();
             },
             nick: () => nickname,
-            plugins: () => me._plugins,
+            plugins: () => new vsrd_objects.ArrayCollection(me._plugins),
             port: () => me._port,
             session: me,
         };
@@ -688,7 +705,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected reloadFriendList(friends?: string[]) {
         let me = this;
 
-        me._friends = new vsrd_objects.ArrayCollection<vsrd_contracts.Friend>();
+        me._friends = [];
 
         if (!friends) {
             return;
@@ -703,8 +720,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 defName = '#' + ++i;
                 
-                for (let j = 0; j < me._friends.length; j++) {
-                    if (me._friends[j].name == defName) {
+                let friends = me._friends;
+                for (let j = 0; j < friends.length; j++) {
+                    if (friends[j].name == defName) {
                         nameExists = true;
                         break;
                     }
@@ -773,7 +791,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     protected reloadPlugins(plugins?: string[]) {
         let me = this;
 
-        me._plugins = new vsrd_objects.ArrayCollection<vsrd_contracts.DebuggerPluginEntry>();
+        me._plugins = [];
 
         let loadedPlugins: string[] = [];
         let finish = () => {
@@ -1003,7 +1021,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     me.handleReceivedEntryData(args);
                 }
                 catch (e) {
-                    me.log('[ERROR] Could not handle entry: ' + e);
+                    me.log('[ERROR] Could not handle entry: ' + e + '\n\n' + e.stack);
                 }
             },
             log: (m) => me.log(m),
