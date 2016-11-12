@@ -31,15 +31,8 @@ function test_function(\MJK\Diagnostics\RemoteDebugger $debugger) {
         }
     ]);
 
-    $debugger->dbgIf(true, [
-        'A' => date('Y-m-d H:i:s'),
-        'B' => 1,
-        'C' => 2.34,
-        'D' => 'Marcel K! Marcel K! Marcel K!',
-        'E' => false,
-        'F' => null,
-        'G' => true,
-    ]);
+    $debugger->dbgIf(true,
+                     get_defined_vars());
 
     $debugger->dbgIf(function($eventData) { return false; }, [
         'AA' => date('Y-m-d H:i:s'),
