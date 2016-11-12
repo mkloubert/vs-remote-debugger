@@ -170,7 +170,10 @@ export class ArrayCollection<T> extends CollectionBase<T> implements vsrd_contra
 
     /** @inheritdoc */
     public clone(): ArrayCollection<T> {
-        return new ArrayCollection<T>(this._array.map(x => x));
+        let clonedColl = new ArrayCollection<T>(this._array);
+        clonedColl._index = -1;
+
+        return clonedColl;
     }
 
     /** @inheritdoc */
@@ -193,15 +196,6 @@ export class ArrayCollection<T> extends CollectionBase<T> implements vsrd_contra
         if (arguments.length > 0) {
             this._array
                 .push(item);
-        }
-    }
-
-    /** @inheritdoc */
-    public pushArray(items?: T[]): void {
-        let me = this;
-        
-        if (items) {
-            items.forEach(x => me.push(x));
         }
     }
 }
@@ -341,9 +335,6 @@ export class JsonFileCollection<T> extends CollectionBase<T> implements vsrd_con
         
         this._dir = Temp.mkdirSync('vsrd_');
 
-        this.clear();
-        this.reset();
-
         this._lengthFunc = function(newValue?: number): number {
             if (arguments.length > 0) {
                 me._length = newValue;
@@ -351,6 +342,9 @@ export class JsonFileCollection<T> extends CollectionBase<T> implements vsrd_con
             
             return me._length;
         }
+
+        this.clear();
+        this.reset();
     }
 
     /** @inheritdoc */
