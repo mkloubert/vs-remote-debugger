@@ -62,7 +62,7 @@ class RemoteDebugger {
     /**
      * The data of the current thread or the callable that provides it.
      *
-     * @var array callable
+     * @var array|callable
      */
     public $CurrentThread = [ 1, 'Thread #1' ];
     /**
