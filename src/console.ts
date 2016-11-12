@@ -2422,8 +2422,7 @@ export class ConsoleManager {
      */
     protected cmd_twitter(result: ExecuteCommandResult): void {
         try {
-            const opn = require('opn');
-            opn(URL_TWITTER);
+            OPN(URL_TWITTER);
 
             result.body(`Opening Twitter page (${URL_TWITTER})...`);
         }
