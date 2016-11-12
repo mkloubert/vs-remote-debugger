@@ -26,7 +26,7 @@
 import * as vsrd_contracts from './contracts';
 import FS = require('fs')
 import Path = require('path');
-const Temp = require('temp');
+const Temp = require('temp').track(true);
 import ZLib = require("zlib");
 
 /**
@@ -104,7 +104,7 @@ export abstract class IndexedEnumerableBase<T> extends EnumerableBase<T> {
     public toArrayAll(): T[] {
         let curIndex = this._index;
         try {
-            this._index = 0;
+            this._index = -1;
             return this.toArray();
         }
         finally {
