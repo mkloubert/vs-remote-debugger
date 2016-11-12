@@ -936,9 +936,10 @@ class RemoteDebugger {
         }
 
         while ($this->isCallable($val)) {
-            $val = $this->unwrapValue($val($this, $args, $step),
+            $val = $this->unwrapValue($val($this, $args, $step, $maxSteps),
                                       $args,
-                                      $step + 1);
+                                      $step + 1,
+                                      $maxSteps);
         }
 
         return $val;
