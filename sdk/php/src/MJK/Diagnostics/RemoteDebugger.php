@@ -656,7 +656,25 @@ class RemoteDebugger {
             }
         }
         else {
+            global $argv;
+
+            $args = [];
+            if (!empty($argv)) {
+                foreach ($argv as $i => $arg) {
+                    $args["arg{$i}"] = $arg;
+                }
+            }
+
             $ctx['t'] = 'cli';
+            $ctx['u'] = "$ctx[t]://" . \urlencode(\implode(' ', $args));
+
+            $ctx['h'] = $_ENV;
+
+            // body
+            $dumpReqBody = $this->unwrapValue($this->DumpBody);
+            if ($dumpReqBody) {
+                $ctx['b'] = @\base64_encode(@\file_get_contents('php://stdin'));
+            }
         }
 
         return $ctx;
