@@ -38,7 +38,7 @@ export interface Collection<T> extends Enumerable<T> {
     readonly key: number;
 
     /**
-     * Gets the number of elements of that class.
+     * Gets the number of elements of that collection.
      */
     readonly length: number;
     
