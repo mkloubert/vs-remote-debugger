@@ -50,6 +50,9 @@ export abstract class EnumerableBase<T> implements vsrd_contracts.Enumerable<T> 
     public abstract get current(): T;
 
     /** @inheritdoc */
+    public abstract get key(): any;
+
+    /** @inheritdoc */
     public abstract moveNext(): boolean;
 
     /** @inheritdoc */
@@ -85,6 +88,11 @@ export abstract class IndexedEnumerableBase<T> extends EnumerableBase<T> {
      */
     constructor() {
         super();
+    }
+
+    /** @inheritdoc */
+    public get key(): number {
+        return this._index;
     }
 
     /** @inheritdoc */

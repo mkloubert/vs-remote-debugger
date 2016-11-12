@@ -368,9 +368,8 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                let j = -1;
                 while (entries.moveNext()) {
-                    ++j;
+                    let j = entries.key;
 
                     let index = j + 1;
                     if (!r.isInRange(index)) {
@@ -380,9 +379,8 @@ export class ConsoleManager {
                     let exists = false;
 
                     favorites.reset();
-                    let k = -1;
                     while (favorites.moveNext()) {
-                        ++k;
+                        let k = favorites.key;
                         
                         let f = favorites.current;
                         if (!f) {
@@ -440,18 +438,17 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_all(result: ExecuteCommandResult): void {
-        let entriesColl = result.entries();
+        let entries = result.entries();
         
         let favorites = result.favorites();
         favorites.clear();
 
-        let i = -1;
-        while (entriesColl.moveNext()) {
-            ++i;
-            let entry = entriesColl.current;
+        while (entries.moveNext()) {
+            let i = entries.key;
+            let e = entries.current;
 
             favorites.push({
-                entry: entry,
+                entry: e,
                 index: i + 1,
             });
         }
@@ -800,9 +797,8 @@ export class ConsoleManager {
                                     me._currentFindIndex = 0;
                                 }
 
-                                let i = -1;
                                 while (entries.moveNext()) {
-                                    ++i;
+                                    let i = entries.key;
                                     let index = (me._currentFindIndex + i) % entries.length;
                                     
                                     let e = entries.current;
@@ -1174,9 +1170,8 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                let j = -1;
                 while (entries.moveNext()) {
-                    ++j;
+                    let j = entries.key;
 
                     let index = j + 1;
                     if (!r.isInRange(index)) {
@@ -1914,9 +1909,8 @@ export class ConsoleManager {
                 let r = ranges[i];
 
                 entries.reset();
-                let j = -1;
                 while (entries.moveNext()) {
-                    ++j;
+                    let j = entries.key;
 
                     let index = j + 1;
                     if (!r.isInRange(index)) {
@@ -2071,9 +2065,8 @@ export class ConsoleManager {
                     try {
                         let jsons: string[] = [];
 
-                        let i = -1;
                         while(favorites.moveNext()) {
-                            ++i;
+                            let i = favorites.key;
                             
                             let fav = favorites.current;
                             if (!fav) {
@@ -2137,7 +2130,7 @@ export class ConsoleManager {
 
         let output = '';
 
-        if (favs && favs.length > 0) {
+        if (favs.length > 0) {
             let finished = () => {
                 result.writeLine(`Send favorites to '${host}:${port}'`);
 
@@ -2146,7 +2139,7 @@ export class ConsoleManager {
 
             let sendNext: () => void;
             sendNext = function() {
-                if (!favs || !favs.moveNext() || !favs.current) {
+                if (!favs.moveNext() || !favs.current) {
                     finished();
                     return;
                 }
@@ -2243,7 +2236,7 @@ export class ConsoleManager {
 
                     let sendNext: () => void;
                     sendNext = function() {
-                        if (!favs || !favs.moveNext() || !favs.current) {
+                        if (!favs.moveNext() || !favs.current) {
                             finished();
                             return;
                         }
@@ -2364,14 +2357,13 @@ export class ConsoleManager {
         // find entries that are marked as favorites
         let newEntries: vsrd_contracts.RemoteDebuggerEntry[] = [];
 
-        let i = -1;
         while (favorites.moveNext()) {
-            ++i;
+            let i = favorites.key;
             let f = favorites.current;
 
-            let j = -1;
+            entries.reset();
             while (entries.moveNext()) {
-                ++j;
+                let j = entries.key;
 
                 let e = entries.current;
                 let index = j + 1;
@@ -2459,9 +2451,8 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                let j = -1;
                 while (entries.moveNext()) {
-                    ++j;
+                    let j = entries.key;
                     
                     let e = entries.current;
                     let index = j + 1;

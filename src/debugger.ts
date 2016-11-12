@@ -156,9 +156,8 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         if (ce >= 0) {
             let entries = this._entries.clone();
 
-            let i = -1;
             while (entries.moveNext()) {
-                ++i;
+                let i = entries.key;
 
                 if (i == ce) {
                     e = entries.current;

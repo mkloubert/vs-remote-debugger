@@ -34,6 +34,9 @@ export interface Collection<T> extends Enumerable<T> {
      */
     clear(): void;
 
+    /** @inheritdoc */
+    readonly key: number;
+
     /**
      * Gets the number of elements of that class.
      */
@@ -324,7 +327,12 @@ export interface Enumerable<T> {
     /**
      * Gets the current item.
      */
-    current: T;
+    readonly current: T;
+
+    /**
+     * Gets the current key / index.
+     */
+    readonly key: any;
 
     /**
      * Tries to move to the next item.
@@ -339,12 +347,12 @@ export interface Enumerable<T> {
     reset(): void;
 
     /**
-     * Creates a new array from the sequence.
+     * Creates a new array of the current elements of the sequence.
      */
     toArray(): T[];
 
     /**
-     * Creates a new array of ALL elements from the sequence.
+     * Creates a new array of ALL elements of the sequence.
      */
     toArrayAll(): T[];
 }
