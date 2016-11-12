@@ -28,6 +28,7 @@ import * as vsrd_contracts from './contracts';
 import * as vsrd_helpers from './helpers';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
+const OPN = require('opn');
 import OS = require('os');
 import Path = require('path');
 import Net = require('net');
@@ -368,6 +369,7 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
+                entries.reset();
                 while (entries.moveNext()) {
                     let j = entries.key;
 
@@ -463,8 +465,8 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_clear(result: ExecuteCommandResult): void {
-        result.entries([]);
-        result.favorites([]);
+        result.entries().clear();
+        result.favorites().clear();
 
         result.body('Cleared');
         result.sendResponse();
@@ -577,8 +579,7 @@ export class ConsoleManager {
      */
     protected cmd_donate(result: ExecuteCommandResult): void {
         try {
-            const opn = require('opn');
-            opn(URL_PAYPAL_DONATE);
+            OPN(URL_PAYPAL_DONATE);
 
             result.body(`Opening donation page on PayPal (${URL_PAYPAL_DONATE})...`);
         }
@@ -612,16 +613,17 @@ export class ConsoleManager {
             }
 
             let executedCommands = 0;
-            let plugins = me._context.plugins().toArrayAll();
-            for (let i = 0; i < plugins.length; i++) {
-                let p = plugins[i].plugin;
+            let plugins = me._context.plugins();
+
+            while (plugins.moveNext()) {
+                let p = plugins.current.plugin;
                 if (p.commands && p.execute) {
                     let execCtx: vsrd_contracts.DebuggerPluginExecutionContext;
                     
                     let supportedCommands = p.commands();
                     if (supportedCommands) {
-                        for (let j = 0; j < supportedCommands.length; j++) {
-                            let originalName = supportedCommands[j];
+                        for (let i = 0; i < supportedCommands.length; i++) {
+                            let originalName = supportedCommands[i];
                             if (!originalName) {
                                 continue;
                             }
@@ -667,8 +669,9 @@ export class ConsoleManager {
                 };
 
                 // try find similar commands
-                for (let i = 0; i < plugins.length; i++) {
-                    let pe = plugins[i];
+                plugins.reset();
+                while (plugins.moveNext()) {
+                    let pe = plugins.current;
                     let p = pe.plugin;
 
                     if (p.commands && p.execute) {
@@ -741,15 +744,16 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_favs(result: ExecuteCommandResult, me: ConsoleManager): void {
-        let favorites = result.favorites().toArrayAll();
+        let favorites = result.favorites();
         let totalCount = 0;
         
         let entriesToDisplay: DisplayableEntry[] = [];
-        if (favorites) {
+        {
             totalCount = favorites.length;
 
-            for (let i = 0; i < favorites.length; i++) {
-                let fav = favorites[i];
+            while (favorites.moveNext()) {
+                let fav = favorites.current;
+
                 if (fav && fav.entry) {
                     entriesToDisplay.push({
                         entry: fav.entry,
@@ -789,7 +793,7 @@ export class ConsoleManager {
                         try {
                             let findRes: VariableFinderResult;
 
-                            let entries = result.entries();
+                            let entries = me.debugger.entries();
 
                             if (entries.length > 0) {
                                 ++me._currentFindIndex;
@@ -906,8 +910,9 @@ export class ConsoleManager {
             const Table = require('easy-table');
             let t = new Table();
 
-            for (let i = 0; i < friends.length; i++) {
-                let f = friends[i];
+            while (friends.moveNext()) {
+                let i = friends.key;
+                let f = friends.current;
 
                 t.cell('#', i + 1);
                 t.cell('Name', f.name);
@@ -932,8 +937,7 @@ export class ConsoleManager {
      */
     protected cmd_github(result: ExecuteCommandResult): void {
         try {
-            const opn = require('opn');
-            opn(URL_PROJECT_GITHUB);
+            OPN(URL_PROJECT_GITHUB);
 
             result.body(`Opening project page on GitHub (${URL_PROJECT_GITHUB})...`);
         }   
@@ -951,8 +955,7 @@ export class ConsoleManager {
      */
     protected cmd_issues(result: ExecuteCommandResult): void {
         try {
-            const opn = require('opn');
-            opn(URL_ISSUES_GITHUB);
+            OPN(URL_ISSUES_GITHUB);
 
             result.body(`Opening issue page on GitHub (${URL_ISSUES_GITHUB})...`);
         }   
@@ -992,8 +995,6 @@ export class ConsoleManager {
         }
 
         try {
-            const opn = require('opn');
-
             let listOfCommands: string[];
             if (cmd) {
                 listOfCommands = cmd.split(' ').map(x => {
@@ -1015,7 +1016,7 @@ export class ConsoleManager {
                             }
 
                             let url = `https://github.com/mkloubert/vs-remote-debugger/wiki/${encodeURIComponent('command_' + wikiPage)}`;
-                            opn(url);
+                            OPN(url);
 
                             result.writeLine(`Opening wiki page of command '${c}': ${url}`);
                         }
@@ -1059,7 +1060,7 @@ export class ConsoleManager {
             }
             else {
                 let url = `https://github.com/mkloubert/vs-remote-debugger/wiki#commands`;
-                opn(url);
+                OPN(url);
 
                 result.writeLine(`Opening wiki page with all commands: ${url}`);
             }
@@ -1170,6 +1171,7 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
+                entries.reset();
                 while (entries.moveNext()) {
                     let j = entries.key;
 
@@ -1258,22 +1260,22 @@ export class ConsoleManager {
 
         let entriesToDisplay: DisplayableEntry[] = [];
 
-        for (let i = 0; i < itemsToDisplay; i++) {
-            let index = itemsToSkip + i;
-            if (index >= entries.length) {
-                // no more items to display
-                break;
-            }
-
+        for (let i = 0; i < itemsToSkip; i++) {
             if (!entries.moveNext()) {
                 break;
+            }
+        }
+
+        for (let i = 0; i < itemsToDisplay; i++) {
+            if (!entries.moveNext()) {
+                break;  // no more items to display
             }
 
             let entry = entries.current;
             if (entry) {
                 entriesToDisplay.push({
                     entry: entry,
-                    index: index + 1,
+                    index: entries.key + 1,
                 });
             }
         }
@@ -1517,28 +1519,41 @@ export class ConsoleManager {
         }
 
         let entriesToDisplay: DisplayableEntry[] = [];
-        for (let i = 0; i < itemsToDisplay; i++) {
-            let index = entries.length - (itemsToSkip + i) - 1;
-            if (index < 0) {
-                // no more items to display
-                break;
+
+        if (entries.length > 0) {
+            let startIndex = entries.length - itemsToDisplay - itemsToSkip;
+            if (startIndex < 0) {
+                startIndex = 0;
             }
 
-            if (!entries.moveNext()) {
-                continue;
+            let endIndex = entries.length - 1 - itemsToSkip;
+            if (endIndex < 0) {
+                endIndex = 0;
             }
 
-            let entry = entries.current;
-            if (entry) {
-                entriesToDisplay.push({
-                    entry: entry,
-                    index: index + 1,
-                })
+            for (let i = 0; i < startIndex; i++) {
+                if (!entries.moveNext()) {
+                    break;
+                }
+            }
+
+            for (let i = startIndex; i <= endIndex; i++) {
+                if (!entries.moveNext()) {
+                    break;
+                }
+
+                let entry = entries.current;
+                if (entry) {
+                    entriesToDisplay.push({
+                        entry: entry,
+                        index: entries.key + 1,
+                    })
+                }
             }
         }
 
         me.displayEntries(result,
-                          entriesToDisplay, entries.length);
+                          entriesToDisplay.reverse(), entries.length);
 
         result.sendResponse();
     }
@@ -1615,7 +1630,7 @@ export class ConsoleManager {
      */
     protected cmd_plugins(result: ExecuteCommandResult, me: ConsoleManager): void {
         try {
-            let plugins = me._context.plugins().toArrayAll();
+            let plugins = me._context.plugins();
 
             if (plugins.length > 0) {
                 let output = '';
@@ -1624,8 +1639,10 @@ export class ConsoleManager {
                 let t;
                 
                 t = new Table();
-                for (let i = 0; i < plugins.length; i++) {
-                    let pe = plugins[i];
+                while (plugins.moveNext()) {
+                    let i = plugins.key;
+
+                    let pe = plugins.current;
                     let p = pe.plugin;
                     
                     let info: vsrd_contracts.DebuggerPluginInfo;
@@ -1792,14 +1809,15 @@ export class ConsoleManager {
                         try {
                             let findRes: VariableFinderResult;
 
-                            let entries = result.entries().toArrayAll();
+                            let entries = result.entries();
                             if (entries.length > 0) {
                                 ++me._currentFindIndex;
                                 if (me._currentFindIndex >= entries.length) {
                                     me._currentFindIndex = 0;
                                 }
 
-                                for (let i = 0; i < entries.length; i++) {
+                                while (entries.moveNext()) {
+                                    let i = entries.key;
                                     let index = (me._currentFindIndex + i) % entries.length;
                                     
                                     let e = entries[index];
@@ -2230,6 +2248,8 @@ export class ConsoleManager {
 
             if (friends.length > 0) {
                 let sendToFriend = (f: vsrd_contracts.Friend) => {
+                    favs.reset();
+
                     let finished = () => {
                         result.writeLine(`Send favorites to '${f.name}' (${f.address}:${f.port})`);
                     };
@@ -2451,6 +2471,7 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
+                entries.reset();
                 while (entries.moveNext()) {
                     let j = entries.key;
                     
@@ -2476,6 +2497,13 @@ export class ConsoleManager {
         }
 
         result.sendResponse();
+    }
+
+    /**
+     * Gets the underlying debugger context.
+     */
+    public get debugger(): vsrd_contracts.DebuggerContext {
+        return this._context;
     }
 
     /**

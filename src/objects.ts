@@ -26,7 +26,7 @@
 import * as vsrd_contracts from './contracts';
 import FS = require('fs')
 import Path = require('path');
-var Temp = require('temp');
+const Temp = require('temp');
 import ZLib = require("zlib");
 
 /**
