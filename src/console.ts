@@ -32,6 +32,7 @@ const OPN = require('opn');
 import OS = require('os');
 import Path = require('path');
 import Net = require('net');
+const Table = require('easy-table');
 
 const DEFAULT_FILENAME_FORMAT = 'vsrd_favs_${timestamp}';
 
@@ -907,7 +908,6 @@ export class ConsoleManager {
         if (friends.length > 0) {
             let output = '';
 
-            const Table = require('easy-table');
             let t = new Table();
 
             while (friends.moveNext()) {
@@ -1474,7 +1474,6 @@ export class ConsoleManager {
         }
 
         if (foundInterfaces.length > 0) {
-            const Table = require('easy-table');
             let t = new Table();
             
             for (let i = 0; i < foundInterfaces.length; i++) {
@@ -1635,7 +1634,6 @@ export class ConsoleManager {
             if (plugins.length > 0) {
                 let output = '';
 
-                const Table = require('easy-table');
                 let t;
                 
                 t = new Table();
@@ -2521,7 +2519,6 @@ export class ConsoleManager {
         }
 
         if (entries && entries.length > 0) {
-            const Table = require('easy-table');
             let t = new Table();
 
             for (let i = 0; i < entries.length; i++) {
