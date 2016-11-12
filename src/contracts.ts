@@ -542,7 +542,7 @@ export interface RemoteDebuggerRequest {
     b?: string;
 
     /**
-     * The list of headers as key/value pair.
+     * The list of headers as key/value pairs.
      */
     h?: any;
 
