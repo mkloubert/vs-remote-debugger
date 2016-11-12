@@ -144,6 +144,8 @@ class RemoteDebugger {
      *                                           host or the callable that provides its
      *                                           connection data.
      * @param int $port The custom TCP port.
+     *
+     * @chainable
      */
     public function addHost($addressOrProvider = null, $port = null, $timeout = null) {
         $dbgClass = new \ReflectionObject($this);
@@ -226,6 +228,8 @@ class RemoteDebugger {
         }
 
         $this->_hostProviders[] = $provider;
+
+        return $this;
     }
 
     /**
@@ -286,39 +290,7 @@ class RemoteDebugger {
         $sender = $this->Sender;
         if (!$sender) {
             // use default
-
-            $sender = function($json, $eventData, $errorHandler) {
-                $connData = $eventData['host'];
-
-                $fp = @\fsockopen($connData[0], $connData[1], $errno, $errstr, $connData[2]);
-                if (\is_resource($fp)) {
-                    try {
-                        if (false !== @\fwrite($fp, \pack('V', \strlen($json)))) {
-                            if (false === @\fwrite($fp, $json)) {
-                                // could not send JSON
-                                $errorHandler('send.json',
-                                              @\error_get_last(),
-                                              $eventData);
-                            }
-                        }
-                        else {
-                            // could not send data length
-                            $errorHandler('send.datalength',
-                                          @\error_get_last(),
-                                          $eventData);
-                        }
-                    }
-                    finally {
-                        @\fclose($fp);
-                    }
-                }
-                else {
-                    // connection error
-                    $errorHandler('connection',
-                                  [$errno, $errstr],
-                                  $eventData);
-                }
-            };
+            $sender = [ $this, 'defaultSender' ];
         }
 
         foreach ($this->_hostProviders as $providerIndex => $provider) {
@@ -586,6 +558,46 @@ class RemoteDebugger {
             catch (\Exception $ex) {
                 $handleError('exception', $ex, $eventData);
             }
+        }
+    }
+
+    /**
+     * The default sender logic.
+     *
+     * @param string $json The data to send.
+     * @param array $eventData The debugging context.
+     * @param callable $errorHandler The default error handler.
+     */
+    public function defaultSender($json, $eventData, $errorHandler) {
+        $connData = $eventData['host'];
+
+        $fp = @\fsockopen($connData[0], $connData[1], $errno, $errstr, $connData[2]);
+        if (\is_resource($fp)) {
+            try {
+                if (false !== @\fwrite($fp, \pack('V', \strlen($json)))) {
+                    if (false === @\fwrite($fp, $json)) {
+                        // could not send JSON
+                        $errorHandler('send.json',
+                                      @\error_get_last(),
+                                      $eventData);
+                    }
+                }
+                else {
+                    // could not send data length
+                    $errorHandler('send.datalength',
+                                  @\error_get_last(),
+                                  $eventData);
+                }
+            }
+            finally {
+                @\fclose($fp);
+            }
+        }
+        else {
+            // connection error
+            $errorHandler('connection',
+                          [ $errno, $errstr ],
+                          $eventData);
         }
     }
 
