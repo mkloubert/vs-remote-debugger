@@ -94,6 +94,18 @@ class RemoteDebugger {
      */
     public static $DefaultTimeout = 5;
     /**
+     * A value that defines if request body also should be dumped or not (or the callable that provides it).
+     *
+     * @var bool|callable
+     */
+    public $DumpBody = false;
+    /**
+     * A value that defines if request header also should be dumped or not (or the callable that provides it).
+     *
+     * @var bool|callable
+     */
+    public $DumpHeader = true;
+    /**
      * A callable that filters an entry BEFORE it is send.
      *
      * @var callable
@@ -118,6 +130,12 @@ class RemoteDebugger {
      * @var int|callable
      */
     public $MaxDepth;
+    /**
+     * A custom callable that builds an array with information about the current request.
+     *
+     * @var callable
+     */
+    public $RequestContext;
     /**
      * A custom callable that is used to send the data.
      *
@@ -293,6 +311,11 @@ class RemoteDebugger {
             $sender = [ $this, 'defaultSender' ];
         }
 
+        $reqCtx = $this->RequestContext;
+        if (!$reqCtx) {
+            $reqCtx = [ $this, 'defaultRequestContext' ];
+        }
+
         foreach ($this->_hostProviders as $providerIndex => $provider) {
             $connData = $provider($this);
             if (empty($connData)) {
@@ -343,29 +366,34 @@ class RemoteDebugger {
                 }
 
                 $entry = [
-                    't' => [],
-                    's' => [],
+                    't' => [],  // list of threads
+                    's' => [],  // stacktrace
                     'v' => $debuggerVars,
+                    'r' => $reqCtx($eventData),  // request information
                 ];
 
+                // target client
                 $client = $this->unwrapValue($this->TargetClient, $eventData);
                 if (!empty($client)) {
                     $entry['c'] = $client;
                 }
 
+                // app name
                 $app = $this->unwrapValue($this->App, $eventData);
                 if (!empty($app)) {
                     $entry['a'] = $app;
                 }
 
+                // current thread
                 $currentThread = $this->unwrapValue($this->CurrentThread, $eventData);
                 if (!empty($currentThread)) {
                     $entry['t'][] = [
-                        'i' => $currentThread[0],
-                        'n' => $currentThread[1],
+                        'i' => $currentThread[0],  // ID
+                        'n' => $currentThread[1],  // name
                     ];
                 }
 
+                // collect frames of the stacktrace
                 foreach ($backtrace as $i => $bt) {
                     if ($i < $skipFrames) {
                         continue;
@@ -421,9 +449,9 @@ class RemoteDebugger {
 
                     // file
                     if (!empty($bt['file'])) {
-                        $stackFrame['ln'] = $bt['file'];
-                        $stackFrame['f'] = $this->toRelativePath($stackFrame['ln']);
-                        $stackFrame['fn'] = \basename($stackFrame['ln']);
+                        $stackFrame['ln'] = $bt['file'];  // long (local) name
+                        $stackFrame['f'] = $this->toRelativePath($stackFrame['ln']);  // relative path
+                        $stackFrame['fn'] = \basename($stackFrame['ln']);  // file name only
                     }
 
                     // line
@@ -551,7 +579,7 @@ class RemoteDebugger {
                 else {
                     // JSON error
                     $handleError('json',
-                                 [@\json_last_error(), @\json_last_error_msg()],
+                                 [ @\json_last_error(), @\json_last_error_msg() ],
                                  $eventData);
                 }
             }
@@ -559,6 +587,79 @@ class RemoteDebugger {
                 $handleError('exception', $ex, $eventData);
             }
         }
+    }
+
+    /**
+     * The default logic to collect and return information about the current request.
+     *
+     * @param array $eventData The debugging context.
+     *
+     * @return array The information about the current request.
+     */
+    public function defaultRequestContext($eventData) {
+        $ctx = [];
+
+        if ('cli' !== \php_sapi_name()) {
+            $isSecure = false;
+            if (!empty($_SERVER['HTTPS']) &&
+                'on' === $_SERVER['HTTPS']) {
+
+                $isSecure = true;
+            }
+            else if ((!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+                      'https' === $_SERVER['HTTP_X_FORWARDED_PROTO']) ||
+                     (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) &&
+                      'on' === $_SERVER['HTTP_X_FORWARDED_SSL'])) {
+
+                $isSecure = true;
+            }
+
+            // type and URL
+            $ctx['t'] = $isSecure ? 'https' : 'http';
+            $ctx['u'] = "$ctx[t]://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+
+            // method
+            $ctx['m'] = 'GET';
+            if (!empty($_SERVER['REQUEST_METHOD'])) {
+                $ctx['m'] = $_SERVER['REQUEST_METHOD'];
+            }
+
+            // headers
+            $dumpReqHeader = $this->unwrapValue($this->DumpHeader);
+            if ($dumpReqHeader || null === $dumpReqHeader) {
+                $getHttpHeaders = "\\getallheaders";
+                if (!\is_callable($getHttpHeaders)) {
+                    $getHttpHeaders = function() {
+                        $headers = array();
+                        foreach($_SERVER as $key => $value) {
+                            if (\substr($key, 0, 5) <> 'HTTP_') {
+                                continue;
+                            }
+
+                            $header = \str_replace(' ', '-',
+                                                   \ucwords(\str_replace('_', ' ',
+                                                                         \strtolower(\substr($key, 5)))));
+                            $headers[$header] = $value;
+                        }
+
+                        return $headers;
+                    };
+                }
+
+                $ctx['h'] = @$getHttpHeaders();
+            }
+
+            // body
+            $dumpReqBody = $this->unwrapValue($this->DumpBody);
+            if ($dumpReqBody) {
+                $ctx['b'] = @\base64_encode(@\file_get_contents('php://input'));
+            }
+        }
+        else {
+            $ctx['t'] = 'cli';
+        }
+
+        return $ctx;
     }
 
     /**

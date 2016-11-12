@@ -10,6 +10,7 @@ $debugger->JsonTransformer = function($json) {
     return @\gzencode($json);
 };
 
+$debugger->DumpBody = true;
 $debugger->ScriptRoot = __DIR__;
 $debugger->MaxDepth = 16;
 $debugger->addHost("localhost", 23979);

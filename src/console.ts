@@ -46,6 +46,7 @@ const COMMAND_WIKI_PAGES = {
     '-': 'prev_message',
     'add': null,
     'all': null,
+    'body': null,
     'clear': null,
     'continue': null,
     'counter': null,
@@ -79,6 +80,7 @@ const COMMAND_WIKI_PAGES = {
     'refresh': null,
     'regex': null,
     'remove': null,
+    'request': null,
     'reset': null,
     'save': null,
     'search': 'find',
@@ -94,6 +96,7 @@ const COMMAND_WIKI_PAGES = {
 };
 
 const REGEX_CMD_ADD = /^(add)(\s+.*)?$/i;
+const REGEX_CMD_BODY = /^(body)([\s]*)(raw|base64|string|ascii|json|hex|utf16)?$/i;
 const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
@@ -457,6 +460,116 @@ export class ConsoleManager {
         }
 
         result.body(`All ${favorites.length} entries were added as favorites`);
+        result.sendResponse();
+    }
+
+    /**
+     * 'body' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
+     * @param {ConsoleManager} me The underlying console manager.
+     */
+    protected cmd_body(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
+        let entry = result.currentEntry();
+        if (entry) {
+            if (entry.r) {
+                if (entry.r.b) {
+                    let format = '';
+                    if (match[3]) {
+                        format = ('' + match[3]).toLowerCase().trim();
+                    }
+
+                    let outputBuilder: (body: Buffer) => string;
+
+                    switch (format) {
+                        case 'ascii':
+                            outputBuilder = (body) => {
+                                return body ? body.toString('ascii') : '';
+                            };
+                            break;
+
+                        case 'base64':
+                            outputBuilder = (body) => {
+                                let output: string = '';
+                                if (body) {
+                                    output = body.toString('base64');
+                                }
+
+                                return output;
+                            };
+                            break;
+
+                        case 'hex':
+                            outputBuilder = (body) => {
+                                return body ? body.toString('hex') : '';
+                            };
+                            break;
+
+                        case 'json':
+                            outputBuilder = (body) => {
+                                let json = body ? body.toString('utf8') : '';
+                                try {
+                                    let obj = JSON.parse(json);
+
+                                    return JSON.stringify(obj, null, 2);
+                                }
+                                catch (e) {
+                                    return json;
+                                }
+                            };
+                            break;
+
+                        case 'utf16':
+                            outputBuilder = (body) => {
+                                return body ? body.toString('utf16le') : '';
+                            };
+                            break;
+
+                        case 'string':
+                            outputBuilder = (body) => {
+                                return body ? body.toString('utf8') : '';
+                            };
+                            break;
+
+                        default:
+                            // 'raw'
+                            format = 'raw';
+                            outputBuilder = (body) => {
+                                return body ? body.toString('binary') : '';
+                            };
+                            break;
+                    }
+
+                    let buff: Buffer;
+                    let body = '' + entry.r.b;
+                    if (body) {
+                        try {
+                            let base64 = body.trim();
+                            if (base64) {
+                                buff = new Buffer(base64, 'base64');
+                            }
+                        }
+                        catch (e) {
+                            buff = new Buffer(body, 'ascii');
+                        }
+                    }
+
+                    result.write(outputBuilder(buff));
+                    result.body(`Format: ${format}`);
+                }
+                else {
+                    result.body('No body available');
+                }
+            }
+            else {
+                result.body('No information available');
+            }
+        }
+        else {
+            result.body('Please select an entry!');
+        }
+
         result.sendResponse();
     }
 
@@ -1078,58 +1191,60 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_help_screen(result: ExecuteCommandResult): void {
-        let output = ' Command                                     | Description\n';
-           output += '---------------------------------------------|-----------------------------------------------------------------------------------\n';
-           output += ' ?                                           | Shows that help screen\n';
-           output += ' +                                           | Goes to next entry\n';
-           output += ' -                                           | Goes to previous entry\n';
-           output += ' about                                       | Displays information about the plugin and the author\n';
-           output += ' add [$INDEXES]                              | Adds the current or specific entries as favorites\n';
-           output += ' all                                         | Adds all entries as favorites\n';
-           output += ' clear                                       | Removes all loaded entries and favorites\n';
-           output += ' continue                                    | Continues debugging\n';
-           output += ' counter [$VALUE] [pause]                    | Sets the counter value and disables "pause mode" by default\n';
-           output += ' current                                     | Displays current index\n';
-           output += ' debug                                       | Runs debugger itself in "debug mode"\n';
-           output += ' disable [pause]                             | Disables the counter and disables "pause mode" by default\n';
-           output += ' donate                                      | If you like that extension, you can send me a donation via PayPal :-)\n';
-           output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
-           output += ' favs                                        | Lists all favorites\n';
-           output += ' find [$EXPR]                                | Starts a search for an expression inside the "Debugger" variables\n';
-           output += ' first                                       | Jumps to first item\n';
-           output += ' friends                                     | Displays the list of friends\n';
-           output += ' github                                      | Opens the project page on GitHub\n';
-           output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
-           output += ' help [$COMMANDS]                            | Opens the wiki page of one or more command with details information\n';
-           output += ' history [$INDEXES]                          | Lists the logs of one or more entry\n';
-           output += ' issues                                      | Opens the "issues" page of the project on GitHub\n';
-           output += ' last                                        | Jumps to last entry\n';
-           output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Lists a number of entries\n';
-           output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
-           output += ' log $MESSAGE                                | Adds a log message to the current entry\n';
-           output += ' me                                          | Lists all network interfaces of that machine\n';
-           output += ' new [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]    | Lists a number of entries (backward)\n';
-           output += ' next                                        | Continues a "Debugger" variable search\n';
-           output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
-           output += ' none                                        | Clears all favorites\n';
-           output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
-           output += ' plugins                                     | Lists all loaded plugins\n';
-           output += ' refresh                                     | Refreshes the view\n';
-           output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
-           output += ' remove [$INDEXES]                           | Removes one or more entry from the list of favorites\n';
-           output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n';
-           output += '                                             | and disables "pause mode" by default\n';  
-           output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
-           output += ' search [$EXPR]                              | Alias for "find" command\n';
-           output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
-           output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
-           output += ' share [$FRIENDS]*                           | Sends your favorites to one or more friend\n';
-           output += ' sort                                        | Sorts all entries by timestamp\n';
-           output += ' state                                       | Displays the current debugger state\n';
-           output += ' toggle                                      | Toggles "paused" state\n';
-           output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
-           output += ' twitter                                     | Opens my twitter page\n';
-           output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
+        let output = ' Command                                        | Description\n';
+           output += '------------------------------------------------|-----------------------------------------------------------------------------------\n';
+           output += ' ?                                              | Shows that help screen\n';
+           output += ' +                                              | Goes to next entry\n';
+           output += ' -                                              | Goes to previous entry\n';
+           output += ' about                                          | Displays information about the plugin and the author\n';
+           output += ' add [$INDEXES]                                 | Adds the current or specific entries as favorites\n';
+           output += ' body [ascii|base64|hex|json|raw|string|utf16]  | Displays the body of the request\n';
+           output += ' all                                            | Adds all entries as favorites\n';
+           output += ' clear                                          | Removes all loaded entries and favorites\n';
+           output += ' continue                                       | Continues debugging\n';
+           output += ' counter [$VALUE] [pause]                       | Sets the counter value and disables "pause mode" by default\n';
+           output += ' current                                        | Displays current index\n';
+           output += ' debug                                          | Runs debugger itself in "debug mode"\n';
+           output += ' disable [pause]                                | Disables the counter and disables "pause mode" by default\n';
+           output += ' donate                                         | If you like that extension, you can send me a donation via PayPal :-)\n';
+           output += ' exec $COMMAND [$ARGS]                          | Executes a command of a plugin\n';
+           output += ' favs                                           | Lists all favorites\n';
+           output += ' find [$EXPR]                                   | Starts a search for an expression inside the "Debugger" variables\n';
+           output += ' first                                          | Jumps to first item\n';
+           output += ' friends                                        | Displays the list of friends\n';
+           output += ' github                                         | Opens the project page on GitHub\n';
+           output += ' goto $INDEX                                    | Goes to a specific entry (beginning at 1)\n';
+           output += ' help [$COMMANDS]                               | Opens the wiki page of one or more command with details information\n';
+           output += ' history [$INDEXES]                             | Lists the logs of one or more entry\n';
+           output += ' issues                                         | Opens the "issues" page of the project on GitHub\n';
+           output += ' last                                           | Jumps to last entry\n';
+           output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]      | Lists a number of entries\n';
+           output += ' load [$FILE]                                   | Loads entries from a local JSON file\n';
+           output += ' log $MESSAGE                                   | Adds a log message to the current entry\n';
+           output += ' me                                             | Lists all network interfaces of that machine\n';
+           output += ' new [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]       | Lists a number of entries (backward)\n';
+           output += ' next                                           | Continues a "Debugger" variable search\n';
+           output += ' nodebug                                        | Stops running debugger itself in "debug mode"\n';
+           output += ' none                                           | Clears all favorites\n';
+           output += ' pause                                          | Pauses debugging (skips incoming messages)\n';
+           output += ' plugins                                        | Lists all loaded plugins\n';
+           output += ' refresh                                        | Refreshes the view\n';
+           output += ' regex $PATTERN                                 | Starts a search inside the "Debugger" variables by using a regular expression\n';
+           output += ' remove [$INDEXES]                              | Removes one or more entry from the list of favorites\n';
+           output += ' request                                        | Shows information about the underlying request\n';
+           output += ' reset [pause]                                  | Resets the counter with the start value from the debugger config\n';
+           output += '                                                | and disables "pause mode" by default\n';  
+           output += ' save [$FILE]                                   | Saves the favorites to a local JSON file\n';
+           output += ' search [$EXPR]                                 | Alias for "find" command\n';
+           output += ' send $ADDR [$PORT]                             | Sends your favorites to a remote machine\n';
+           output += ' set $TEXT                                      | Sets additional information like a "note" value for the current entry\n';
+           output += ' share [$FRIENDS]*                              | Sends your favorites to one or more friend\n';
+           output += ' sort                                           | Sorts all entries by timestamp\n';
+           output += ' state                                          | Displays the current debugger state\n';
+           output += ' toggle                                         | Toggles "paused" state\n';
+           output += ' trim                                           | Removes all entries that are NOT marked as "favorites"\n';
+           output += ' twitter                                        | Opens my twitter page\n';
+           output += ' unset [$INDEXES]                               | Removes the additional information that is stored in one or more entry\n';
 
         result.write(output);
 
@@ -1958,6 +2073,107 @@ export class ConsoleManager {
     }
 
     /**
+     * 'request' command
+     * 
+     * @param {ExecuteCommandResult} result The object for handling the result.
+     */
+    protected cmd_request(result: ExecuteCommandResult): void {
+        let entry = result.currentEntry();
+        if (entry) {
+            if (entry.r) {
+                let output = '';
+
+                output += 'Type: ';
+                if (entry.r.t) {
+                    output += '' + entry.r.t;
+                }
+                else {
+                    output += '<UNKNOWN>';
+                }
+                output += "\n";
+
+                output += 'Method: ';
+                if (entry.r.m) {
+                    output += '' + entry.r.m;
+                }
+                else {
+                    output += '<UNKNOWN>';
+                }
+                output += "\n";
+
+                output += '\n';
+                output += 'Header:\n';
+                output += '============\n';
+                if (entry.r.h) {
+                    let t = new Table();
+
+                    let i = -1;
+                    for (let k in entry.r.h) {
+                        ++i;
+                        
+                        t.cell('#', i + 1);
+                        t.cell('Name', '' + k);
+                        t.cell('Value', '' + entry.r.h[k]);
+                        
+                        t.newRow();
+                    }
+
+                    output += t.toString() + "\n";
+                }
+                else {
+                    output += 'No information available\n';
+                }
+
+                output += 'Body:\n';
+                output += '==========\n';
+                output += 'Size: ';
+                try {
+                    if (entry.r.b) {
+                        // first check if Base64...
+                        let strBody = '' + entry.r.b;
+                        try {
+                            let buff = new Buffer(strBody.trim(), 'base64');
+
+                            output += buff.length;
+                        }
+                        catch (e) {
+                            // no, so handle as "raw" string
+                            output += strBody.length;
+                        }
+                    }
+                    else {
+                        output += '<EMPTY>';
+                    }
+                }
+                catch (e) {
+                    output += '[ERROR] ' + e;
+                }
+                output += '\n\n';
+
+                let uri: string;
+                if (entry.r.u) {
+                    uri = '' + entry.r.u;
+                }
+                else {
+                    uri = '<UNKNOWN>';
+                }
+
+                result.writeLine(output);
+
+                result.body(`URI: ${uri}`);
+            }
+            else {
+                result.body('No request information available');
+            }
+        }
+        else {
+            result.body('Please select an entry!');
+        }
+
+        result.sendResponse();
+    }
+
+    /**
      * 'reset' command
      * 
      * @param {ExecuteCommandResult} result The object for handling the result.
@@ -2700,6 +2916,9 @@ export class ConsoleManager {
         else if ('refresh' == lowerExpr) {
             action = this.cmd_refresh;
         }
+        else if ('request' == lowerExpr) {
+            action = this.cmd_request;
+        }
         else if ('sort' == lowerExpr) {
             action = this.cmd_sort;
         }
@@ -2719,6 +2938,11 @@ export class ConsoleManager {
             // add
             action = toRegexAction(this.cmd_add,
                                    REGEX_CMD_ADD, trimmedExpr);
+        }
+        else if (REGEX_CMD_BODY.test(trimmedExpr)) {
+            // body
+            action = toRegexAction(this.cmd_body,
+                                   REGEX_CMD_BODY, trimmedExpr);
         }
         else if (REGEX_CMD_COUNTER.test(trimmedExpr)) {
             // counter

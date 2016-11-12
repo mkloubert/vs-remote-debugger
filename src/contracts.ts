@@ -507,6 +507,11 @@ export interface RemoteDebuggerEntry {
     },
 
     /**
+     * Request context
+     */
+    r?: RemoteDebuggerRequest,
+
+    /**
      * The stacktrace.
      */
     s?: RemoteDebuggerStackFrame[];
@@ -525,6 +530,36 @@ export interface RemoteDebuggerEntry {
      * The list of variables.
      */
     v?: RemoteDebuggerVariable[];
+}
+
+/**
+ * A request context.
+ */
+export interface RemoteDebuggerRequest {
+    /**
+     * The (Base64) encoded data of the request body.
+     */
+    b?: string;
+
+    /**
+     * The list of headers as key/value pair.
+     */
+    h?: any;
+
+    /**
+     * The name of the request method.
+     */
+    m?: string;
+
+    /**
+     * The type, like 'http', 'https' or 'cli'.
+     */
+    t?: string;
+
+    /**
+     * The URI that represents the request.
+     */
+    u?: string;
 }
 
 /**
