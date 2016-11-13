@@ -755,11 +755,13 @@ class RemoteDebugger {
                                     $isHttps ? 's' : '',
                                     $connData[0], $connData[1]);
 
-                    \curl_setopt($ch, \CURLOPT_SSL_VERIFYHOST, $ignoreSSLHost ? 0 : 1);
-                    \curl_setopt($ch, \CURLOPT_SSL_VERIFYPEER, $ignoreSSLPeer ? 0 : 1);
+                    if ($isHttps) {
+                        \curl_setopt($ch, \CURLOPT_SSL_VERIFYHOST, $ignoreSSLHost ? false : true);
+                        \curl_setopt($ch, \CURLOPT_SSL_VERIFYPEER, $ignoreSSLPeer ? false : true);
+                    }
                     \curl_setopt($ch, \CURLOPT_TIMEOUT, $connData[2]);
                     \curl_setopt($ch, \CURLOPT_URL, $url);
-                    \curl_setopt($ch, \CURLOPT_POST, 1);
+                    \curl_setopt($ch, \CURLOPT_POST, true);
                     \curl_setopt($ch, \CURLOPT_POSTFIELDS, $json);
 
                     $result = @\curl_exec($ch);
