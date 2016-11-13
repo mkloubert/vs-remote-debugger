@@ -52,41 +52,10 @@ And start debugging:
 
 ## Usage
 
-### PHP
+The following environments and frameworks are supported:
 
-Install the [RemoteDebugger.php](https://github.com/mkloubert/php-remote-debugger/blob/master/src/MJK/Diagnostics/RemoteDebugger.php) in your application.
-
-A common way is to use [Composer](https://getcomposer.org/) to install anything via [Packagist.org](https://packagist.org/packages/mkloubert/vs-remote-debugger):
-
-```bash
-composer require mkloubert/vs-remote-debugger
-```
-
-If you look at the [example code](https://github.com/mkloubert/php-remote-debugger/blob/master/tests/test1.inc.php) you can see how the class can be used:
-
-```php
-$debugger = new \MJK\Diagnostics\RemoteDebugger();
-$debugger->addHost("my.remote.host.or.ip", 23979);
-
-// compress JSON data with GZIP
-// 
-// activate the "gzip" plugin in your
-// launch.json file in VS Code!
-$debugger->JsonTransformer = function($json) {
-    return @\gzencode($json);
-};
-
-// send the information you want to debug
-$debugger->dbg([
-    'a' => date('Y-m-d H:i:s'),
-    'b' => 1,
-    'c' => 2.34,
-    'd' => 'Marcel K! Marcel K! Marcel K!',
-    'e' => false,
-    'f' => null,
-    'g' => true,
-]);
-```
+* [PHP](https://github.com/mkloubert/php-remote-debugger)
+* [Node.js](https://github.com/mkloubert/node-remote-debugger) (currently under development!)
 
 ### No library found?
 
@@ -122,7 +91,6 @@ Look at the following interfaces in the [contracts.ts](https://github.com/mkloub
 | RemoteDebuggerVariable | A variable. |
 
 Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/php-remote-debugger/blob/master/src/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
-
 
 If you run the [test.php](https://github.com/mkloubert/php-remote-debugger/blob/master/tests/test.php) script from the [PHP SDK](https://github.com/mkloubert/php-remote-debugger), a possible message can look like this:
 
