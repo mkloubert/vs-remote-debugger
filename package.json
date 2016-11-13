@@ -72,6 +72,10 @@
                 "type": "number",
                 "description": "The maximum size in bytes a debug entry can have."
               },
+              "mode": {
+                "type": "string",
+                "description": "The mode: 'tcp' or 'http'."
+              },
               "nick": {
                 "type": "string",
                 "description": "Your (nick) name."

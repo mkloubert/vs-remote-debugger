@@ -648,6 +648,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             isDebug: args.isDebug ? true : false,
             isPaused: args.isPaused ? true : false,
             maxMessageSize: args.maxMessageSize,
+            mode: args.mode,
             port: args.port,
         });
     }
@@ -964,6 +965,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
         let me = this;
 
+        let mode: string;
+        if (opts.mode) {
+            mode = ('' + opts.mode).toLowerCase().trim();
+        }
+        if (!mode) {
+            mode = 'tcp';
+        }
+
         // clients
         me._clients = [];
         if (opts.clients) {
@@ -1028,7 +1037,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             port: opts.port,
         };
 
-        const srvModule: vsrd_contracts.ServerModule = require('./servers/tcp');
+        const srvModule: vsrd_contracts.ServerModule = require('./servers/' + mode);
 
         let completed = () => {
             if (opts.completed) {
@@ -1042,7 +1051,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                      me._port = args.port;
                      me._server = args.server;
 
-                     me.log(`Server started on port ${args.port}`);
+                     me.log(`Server started on port ${args.port} in '${mode}' mode`);
 
                      if (me._apps.length > 0) {
                          me.log('App filters: ' + me._apps.join(', '));

@@ -21,6 +21,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+import HTTP = require('http');
 import Net = require('net');
 
 /**
@@ -136,6 +137,37 @@ export function normalizeString(str: any): string {
     }
 
     return str;
+}
+
+/**
+ * Reads data from a HTTP request.
+ * 
+ * @param {Net.Socket} socket The socket.
+ * @param {Number} [numberOfBytes] The optional amount of bytes to read.
+ * 
+ * @return {Promise<Buffer>} The promise.
+ */
+export function readHttpRequest(req: HTTP.IncomingMessage, numberOfBytes?: number): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+        try {
+            let buff: Buffer = req.read(numberOfBytes);
+            if (null === buff) {
+                req.once('readable', function() {
+                    readHttpRequest(req, numberOfBytes).then((b) => {
+                        resolve(b);
+                    }, (err) => {
+                        reject(err);
+                    });
+                });
+            }
+            else {
+                resolve(buff);
+            }
+        }
+        catch (e) {
+            reject(e);
+        }
+    });
 }
 
 /**

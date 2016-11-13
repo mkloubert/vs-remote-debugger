@@ -625,7 +625,7 @@ class RemoteDebugger {
             }
 
             // headers
-            $dumpReqHeader = $this->unwrapValue($this->DumpHeader);
+            $dumpReqHeader = $this->unwrapValue($this->DumpHeader, $eventData);
             if ($dumpReqHeader || null === $dumpReqHeader) {
                 $getHttpHeaders = "\\getallheaders";
                 if (!\is_callable($getHttpHeaders)) {
@@ -650,7 +650,7 @@ class RemoteDebugger {
             }
 
             // body
-            $dumpReqBody = $this->unwrapValue($this->DumpBody);
+            $dumpReqBody = $this->unwrapValue($this->DumpBody, $eventData);
             if ($dumpReqBody) {
                 $ctx['b'] = @\base64_encode(@\file_get_contents('php://input'));
             }
@@ -671,7 +671,7 @@ class RemoteDebugger {
             $ctx['h'] = $_ENV;
 
             // body
-            $dumpReqBody = $this->unwrapValue($this->DumpBody);
+            $dumpReqBody = $this->unwrapValue($this->DumpBody, $eventData);
             if ($dumpReqBody) {
                 $ctx['b'] = @\base64_encode(@\file_get_contents('php://stdin'));
             }
@@ -730,6 +730,58 @@ class RemoteDebugger {
     protected function isCallable($val) {
         return !empty($val) &&
                (($val instanceof \Closure) || (\is_array($val) && \is_callable($val)));
+    }
+
+    /**
+     * Sets up the debugger for sending via HTTP instead of
+     *
+     * @param bool $isHttps Use HTTPS or not.
+     * @param bool $ignoreSSLHost Ignore invalid SSL hosts or not.
+     * @param bool $ignoreSSLPeer Ignore invalid SSL peers or not.
+     */
+    public function setupForHttp($isHttps = false, $ignoreSSLHost = true, $ignoreSSLPeer = true) {
+        $me = $this;
+
+        $this->Sender = function($json, $eventData, $errorHandler) use ($ignoreSSLHost, $ignoreSSLPeer, $isHttps, $me) {
+            $ignoreSSLHost = $me->unwrapValue($ignoreSSLHost, $eventData);
+            $ignoreSSLPeer = $me->unwrapValue($ignoreSSLPeer, $eventData);
+            $isHttps = $me->unwrapValue($isHttps, $eventData);
+            $connData = $eventData['host'];
+
+            $ch = @\curl_init();
+            if (\is_resource($ch)) {
+                try {
+                    $url = \sprintf('http%s://%s:%s/',
+                                    $isHttps ? 's' : '',
+                                    $connData[0], $connData[1]);
+
+                    \curl_setopt($ch, \CURLOPT_SSL_VERIFYHOST, $ignoreSSLHost ? 0 : 1);
+                    \curl_setopt($ch, \CURLOPT_SSL_VERIFYPEER, $ignoreSSLPeer ? 0 : 1);
+                    \curl_setopt($ch, \CURLOPT_TIMEOUT, $connData[2]);
+                    \curl_setopt($ch, \CURLOPT_URL, $url);
+                    \curl_setopt($ch, \CURLOPT_POST, 1);
+                    \curl_setopt($ch, \CURLOPT_POSTFIELDS, $json);
+
+                    $result = @\curl_exec($ch);
+                    if (false === $result) {
+                        // could not send JSON
+                        $errorHandler('send.json',
+                                      [ @\curl_errno($ch), @\curl_error($ch) ],
+                                      $eventData);
+
+                        return;
+                    }
+                }
+                finally {
+                    @\curl_close($ch);
+                }
+            }
+            else {
+                $errorHandler('init',
+                              @\error_get_last(),
+                              $eventData);
+            }
+        };
     }
 
     /**

@@ -737,6 +737,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
     maxMessageSize?: number;
 
     /**
+     * The mode: 'tcp' or 'http'.
+     */
+    mode?: string;
+
+    /**
      * The nickname of the debugger's user.
      */
     nick?: string;
