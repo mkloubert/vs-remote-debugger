@@ -54,8 +54,8 @@ And start debugging:
 
 The following environments and frameworks are supported:
 
-* [PHP](https://github.com/mkloubert/php-remote-debugger)
-* [Node.js](https://github.com/mkloubert/node-remote-debugger) (currently under development!)
+* PHP ([php-remote-debugger](https://github.com/mkloubert/php-remote-debugger))
+* Node.js ([node-remote-debugger](https://github.com/mkloubert/node-remote-debugger)) (currently under development!)
 
 ### No library found?
 
