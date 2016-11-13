@@ -54,7 +54,7 @@ And start debugging:
 
 ### PHP
 
-Install the [RemoteDebugger.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/src/MJK/Diagnostics/RemoteDebugger.php) in your application.
+Install the [RemoteDebugger.php](https://github.com/mkloubert/php-remote-debugger/blob/master/src/MJK/Diagnostics/RemoteDebugger.php) in your application.
 
 A common way is to use [Composer](https://getcomposer.org/) to install anything via [Packagist.org](https://packagist.org/packages/mkloubert/vs-remote-debugger):
 
@@ -62,7 +62,7 @@ A common way is to use [Composer](https://getcomposer.org/) to install anything 
 composer require mkloubert/vs-remote-debugger
 ```
 
-If you look at the [example code](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/tests/test1.inc.php) you can see how the class can be used:
+If you look at the [example code](https://github.com/mkloubert/php-remote-debugger/blob/master/tests/test1.inc.php) you can see how the class can be used:
 
 ```php
 $debugger = new \MJK\Diagnostics\RemoteDebugger();
@@ -121,10 +121,10 @@ Look at the following interfaces in the [contracts.ts](https://github.com/mkloub
 | RemoteDebuggerScope | A scope of a stack frame. |
 | RemoteDebuggerVariable | A variable. |
 
-Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/src/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
+Additional you should look at the [RemoteDebugger](https://github.com/mkloubert/php-remote-debugger/blob/master/src/MJK/Diagnostics/RemoteDebugger.php) class to see how a server machine sends data to Visual Studio Code.
 
 
-If you run the [test.php](https://github.com/mkloubert/vs-remote-debugger/blob/master/sdk/php/tests/test.php) script from the PHP SDK, a possible message can look like this:
+If you run the [test.php](https://github.com/mkloubert/php-remote-debugger/blob/master/tests/test.php) script from the [PHP SDK](https://github.com/mkloubert/php-remote-debugger), a possible message can look like this:
 
 * [example.json](https://github.com/mkloubert/vs-remote-debugger/blob/master/example.json)
 
