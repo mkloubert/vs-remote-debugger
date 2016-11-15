@@ -587,6 +587,11 @@ export interface RemoteDebuggerScope {
  */
 export interface RemoteDebuggerStackFrame {
     /**
+     * Number of the column
+     */
+    c?: number;
+
+    /**
      * The file path.
      */
     f?: string;

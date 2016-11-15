@@ -27,11 +27,11 @@ import * as vsrd_console from './console';
 import * as vsrd_contracts from './contracts';
 import * as vsrd_objects from './objects';
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
-import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
 import OS = require("os");
 import Path = require('path');
+import SourceMap = require('source-map');
 
 /**
  * A debugger session.
@@ -844,7 +844,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             if (plugin) {
                                 pluginEntry = {
                                     file: {
-                                        name: basename(pluginFile),
+                                        name: Path.basename(pluginFile),
                                         path: pluginFile,
                                     },
                                     name: pluginName,
@@ -932,24 +932,87 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     continue;
                 }
 
-                let src: vscode_dbg_adapter.Source;
-                if (sf.f) {
-                    let fileName: string = sf.fn;
-                    if (!fileName) {
-                        fileName = basename(sf.f);
-                    }
+                let file = sf.f;
+                let filePath: string;
+                let line = sf.l;
+                let column = sf.c;
+                if (file) {
+                    // check for source map
+                    // to display the original source file
+                    try {
+                        filePath = Path.join(this._sourceRoot, file);
 
-                    src = new vscode_dbg_adapter.Source(fileName,
-                                                        Path.join(this._sourceRoot, sf.f));
+                        let fileDir = Path.dirname(filePath);
+
+                        let mapFile = Path.join(this._sourceRoot, file + '.map');
+                        if (FS.existsSync(mapFile)) {
+                            // OK, map file exists, let's try to parse it....
+                            let rawMap = FS.readFileSync(mapFile);
+
+                            if (rawMap.length > 0) {
+                                let jsonMap = rawMap.toString('utf8');
+                                if (jsonMap.length > 0) {
+                                    let map = JSON.parse(jsonMap);
+                                    if (map) {
+                                        let mapConsumer = new SourceMap.SourceMapConsumer(map);
+
+                                        // get original position
+                                        let originalPosition = mapConsumer.originalPositionFor({
+                                            line: sf.l,
+                                            column: sf.c,
+                                        });
+
+                                        if (originalPosition) {
+                                            let sourceFile = originalPosition.source;
+                                            if (sourceFile) {
+                                                // generated full path of original source file
+                                                if (Path.isAbsolute(sourceFile)) {
+                                                    sourceFile = Path.join(this._sourceRoot, sourceFile);
+                                                }
+                                                else {
+                                                    sourceFile = Path.join(fileDir, sourceFile);
+                                                }
+
+                                                let originalFile = Path.join(fileDir, originalPosition.source);
+                                                if (FS.existsSync(originalFile)) {
+                                                    if (originalPosition.line && originalPosition.column) {
+                                                        // OK, now we have anything to update...
+
+                                                        line = originalPosition.line;
+                                                        column = originalPosition.column;
+                                                        filePath = originalFile;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (e) {
+                        // ignore
+                    }
                 }
 
-                FRAMES.push(new vscode_dbg_adapter.StackFrame(sf.i, sf.n, src, sf.l));
+                let src: vscode_dbg_adapter.Source;
+                if (filePath) {
+                    let fileName: string = sf.fn;
+                    if (!fileName) {
+                        fileName = Path.basename(file);
+                    }
+
+                    src = new vscode_dbg_adapter.Source(fileName, filePath);
+                }
+
+                FRAMES.push(new vscode_dbg_adapter.StackFrame(sf.i, sf.n, src,
+                                                              line, column));
             }
         }
 
         response.body = {
             stackFrames: FRAMES,
-            totalFrames: FRAMES.length
+            totalFrames: FRAMES.length,
         };
 
         this.sendResponse(response);
