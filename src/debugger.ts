@@ -25,12 +25,13 @@
 
 import * as vsrd_console from './console';
 import * as vsrd_contracts from './contracts';
+import * as vsrd_objects from './objects';
 import * as vscode_dbg_adapter from 'vscode-debugadapter';
-import { basename } from 'path';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
 import OS = require("os");
 import Path = require('path');
+import SourceMap = require('source-map');
 
 /**
  * A debugger session.
@@ -75,11 +76,11 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded entries.
      */
-    protected _entries: vsrd_contracts.RemoteDebuggerEntry[] = [];
+    protected _entries: vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry> = new vsrd_objects.JsonFileCollection<vsrd_contracts.RemoteDebuggerEntry>();
     /**
      * Stores the list of favorites.
      */
-    protected _favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+    protected _favorites: vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerFavorite> = new vsrd_objects.JsonFileCollection<vsrd_contracts.RemoteDebuggerFavorite>();
     /**
      * Stores the format that is used to generate names for message files.
      */
@@ -87,7 +88,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of friends.
      */
-    protected _friends: vsrd_contracts.Friend[];
+    protected _friends: vsrd_contracts.Friend[] = [];
     /**
      * Stores if debug mode is enabled or not.
      */
@@ -99,7 +100,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     /**
      * List of all loaded plugins.
      */
-    protected _plugins: vsrd_contracts.DebuggerPluginEntry[];
+    protected _plugins: vsrd_contracts.DebuggerPluginEntry[] = [];
     /**
      * Stores the port the server is currently running on.
      */
@@ -149,12 +150,24 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
     public get entry(): vsrd_contracts.RemoteDebuggerEntry {
         // this.log('entry');
 
-        var ce = this._currentEntry;
-        if (ce < 0 || ce >= this._entries.length) {
-            return;
+        let e: vsrd_contracts.RemoteDebuggerEntry;
+
+        let ce = this._currentEntry;
+        if (ce >= 0) {
+            let entries = this._entries.clone();
+
+            while (entries.moveNext()) {
+                let i = entries.key;
+
+                if (i == ce) {
+                    e = entries.current;
+
+                    break;
+                }
+            }
         }
 
-        return this._entries[ce];
+        return e;
     }
 
     /** @inheritdoc */
@@ -218,20 +231,22 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                 },
                 entries: function(e?) {
                     if (arguments.length > 0) {
-                        me._entries = e;
+                        me._entries.clear();
+                        me._entries.pushArray(e);
                     }
 
-                    return me._entries;
+                    return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry>>me._entries.clone();
                 },
                 favorites: function(f?) {
                     if (arguments.length > 0) {
-                        me._favorites = f;
+                        me._favorites.clear();
+                        me._favorites.pushArray(f);
                     }
 
-                    return me._favorites;
+                    return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerFavorite>>me._favorites.clone();
                 },
                 filenameFormat: () => me._filenameFormat,
-                friends: () => me._friends,
+                friends: () => new vsrd_objects.ArrayCollection(me._friends),
                 gotoIndex: function(newIndex?: number, response?: DebugProtocol.EvaluateResponse) {
                     if (arguments.length < 1) {
                         me.gotoIndex();
@@ -414,7 +429,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             return;
         }
 
-        let allEntries = me._entries;
+        let allEntries = <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry>>me._entries.clone();
         let allPlugins = me._plugins;
         let apps = me._apps;
         let clients = me._clients;
@@ -590,21 +605,22 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         this._context = {
             entries: function(e?) {
                 if (arguments.length > 0) {
-                    me._entries = e;
+                    me._entries.clear();
+                    me._entries.pushArray(e);
                 }
 
-                return me._entries;
+                return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerEntry>>me._entries.clone();
             },
             favorites: function(f?) {
                 if (arguments.length > 0) {
-                    me._favorites = f;
+                    me._favorites.clear();
+                    me._favorites.pushArray(f);
                 }
 
-                return me._favorites;
+                return <vsrd_contracts.DisposableCollection<vsrd_contracts.RemoteDebuggerFavorite>>me._favorites.clone();
             },
-            friends: () => me._friends,
             nick: () => nickname,
-            plugins: () => me._plugins,
+            plugins: () => new vsrd_objects.ArrayCollection(me._plugins),
             port: () => me._port,
             session: me,
         };
@@ -632,6 +648,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             isDebug: args.isDebug ? true : false,
             isPaused: args.isPaused ? true : false,
             maxMessageSize: args.maxMessageSize,
+            mode: args.mode,
             port: args.port,
         });
     }
@@ -703,8 +720,9 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
 
                 defName = '#' + ++i;
                 
-                for (let j = 0; j < me._friends.length; j++) {
-                    if (me._friends[j].name == defName) {
+                let friends = me._friends;
+                for (let j = 0; j < friends.length; j++) {
+                    if (friends[j].name == defName) {
                         nameExists = true;
                         break;
                     }
@@ -826,7 +844,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                             if (plugin) {
                                 pluginEntry = {
                                     file: {
-                                        name: basename(pluginFile),
+                                        name: Path.basename(pluginFile),
                                         path: pluginFile,
                                     },
                                     name: pluginName,
@@ -914,24 +932,87 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     continue;
                 }
 
-                let src: vscode_dbg_adapter.Source;
-                if (sf.f) {
-                    let fileName: string = sf.fn;
-                    if (!fileName) {
-                        fileName = basename(sf.f);
-                    }
+                let file = sf.f;
+                let filePath: string;
+                let line = sf.l;
+                let column = sf.c;
+                if (file) {
+                    // check for source map
+                    // to display the original source file
+                    try {
+                        filePath = Path.join(this._sourceRoot, file);
 
-                    src = new vscode_dbg_adapter.Source(fileName,
-                                                        Path.join(this._sourceRoot, sf.f));
+                        let fileDir = Path.dirname(filePath);
+
+                        let mapFile = Path.join(this._sourceRoot, file + '.map');
+                        if (FS.existsSync(mapFile)) {
+                            // OK, map file exists, let's try to parse it....
+                            let rawMap = FS.readFileSync(mapFile);
+
+                            if (rawMap.length > 0) {
+                                let jsonMap = rawMap.toString('utf8');
+                                if (jsonMap.length > 0) {
+                                    let map = JSON.parse(jsonMap);
+                                    if (map) {
+                                        let mapConsumer = new SourceMap.SourceMapConsumer(map);
+
+                                        // get original position
+                                        let originalPosition = mapConsumer.originalPositionFor({
+                                            line: sf.l,
+                                            column: sf.c,
+                                        });
+
+                                        if (originalPosition) {
+                                            let sourceFile = originalPosition.source;
+                                            if (sourceFile) {
+                                                // generated full path of original source file
+                                                if (Path.isAbsolute(sourceFile)) {
+                                                    sourceFile = Path.join(this._sourceRoot, sourceFile);
+                                                }
+                                                else {
+                                                    sourceFile = Path.join(fileDir, sourceFile);
+                                                }
+
+                                                let originalFile = Path.join(fileDir, originalPosition.source);
+                                                if (FS.existsSync(originalFile)) {
+                                                    if (originalPosition.line && originalPosition.column) {
+                                                        // OK, now we have anything to update...
+
+                                                        line = originalPosition.line;
+                                                        column = originalPosition.column;
+                                                        filePath = originalFile;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (e) {
+                        // ignore
+                    }
                 }
 
-                FRAMES.push(new vscode_dbg_adapter.StackFrame(sf.i, sf.n, src, sf.l));
+                let src: vscode_dbg_adapter.Source;
+                if (filePath) {
+                    let fileName: string = sf.fn;
+                    if (!fileName) {
+                        fileName = Path.basename(file);
+                    }
+
+                    src = new vscode_dbg_adapter.Source(fileName, filePath);
+                }
+
+                FRAMES.push(new vscode_dbg_adapter.StackFrame(sf.i, sf.n, src,
+                                                              line, column));
             }
         }
 
         response.body = {
             stackFrames: FRAMES,
-            totalFrames: FRAMES.length
+            totalFrames: FRAMES.length,
         };
 
         this.sendResponse(response);
@@ -946,6 +1027,14 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
         }
 
         let me = this;
+
+        let mode: string;
+        if (opts.mode) {
+            mode = ('' + opts.mode).toLowerCase().trim();
+        }
+        if (!mode) {
+            mode = 'tcp';
+        }
 
         // clients
         me._clients = [];
@@ -1003,7 +1092,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                     me.handleReceivedEntryData(args);
                 }
                 catch (e) {
-                    me.log('[ERROR] Could not handle entry: ' + e);
+                    me.log('[ERROR] Could not handle entry: ' + e + '\n\n' + e.stack);
                 }
             },
             log: (m) => me.log(m),
@@ -1011,7 +1100,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
             port: opts.port,
         };
 
-        const srvModule: vsrd_contracts.ServerModule = require('./servers/tcp');
+        const srvModule: vsrd_contracts.ServerModule = require('./servers/' + mode);
 
         let completed = () => {
             if (opts.completed) {
@@ -1025,7 +1114,7 @@ class RemoteDebugSession extends vscode_dbg_adapter.DebugSession {
                      me._port = args.port;
                      me._server = args.server;
 
-                     me.log(`Server started on port ${args.port}`);
+                     me.log(`Server started on port ${args.port} in '${mode}' mode`);
 
                      if (me._apps.length > 0) {
                          me.log('App filters: ' + me._apps.join(', '));
