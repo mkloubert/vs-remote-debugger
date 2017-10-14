@@ -32,7 +32,7 @@ const OPN = require('opn');
 import OS = require('os');
 import Path = require('path');
 import Net = require('net');
-const Table = require('easy-table');
+import Table = require('easy-table');
 
 const DEFAULT_FILENAME_FORMAT = 'vsrd_favs_${timestamp}';
 
@@ -915,54 +915,71 @@ export class ConsoleManager {
                                     me._currentFindIndex = 0;
                                 }
 
-                                while (entries.moveNext()) {
-                                    let i = entries.key;
-                                    let index = (me._currentFindIndex + i) % entries.length;
-                                    
-                                    let e = entries.current;
-                                    if (!e) {
-                                        continue;
+                                // skip entries
+                                let doSearch = true;
+                                if (me._currentFindIndex > 0) {
+                                    for (let i = 0; i < me._currentFindIndex; i++) {
+                                        if (!entries.moveNext()) {
+                                            doSearch = false;
+                                            break;
+                                        }
                                     }
+                                }
+                                else {
+                                    doSearch = entries.moveNext();
+                                }
 
-                                    let vars = e.v;
-                                    if (!vars) {
-                                        continue;
-                                    }
-
-                                    let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
-
-                                    for (let j = 0; j < vars.length; j++) {
-                                        let v = vars[j];
-                                        if (!v) {
+                                if (doSearch) {
+                                    do {
+                                        let i = entries.key;
+                                        let index = (me._currentFindIndex + i) % entries.length;
+                                        
+                                        let e = entries.current;
+                                        if (!e) {
                                             continue;
                                         }
 
-                                        let allDoMatch = true;
-                                        let strToSearchIn = JSON.stringify(v).toLowerCase().trim();
-                                        for (let k = 0; k < parts.length; k++) {
-                                            let p = parts[k];
-                                            
-                                            if (strToSearchIn.indexOf(p) < 0) {
-                                                allDoMatch = false;
-                                                break;
+                                        let vars = e.v;
+                                        if (!vars) {
+                                            continue;
+                                        }
+
+                                        let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
+
+                                        for (let j = 0; j < vars.length; j++) {
+                                            let v = vars[j];
+                                            if (!v) {
+                                                continue;
+                                            }
+
+                                            let allDoMatch = true;
+                                            let strToSearchIn = JSON.stringify(v).toLowerCase().trim();
+                                            for (let k = 0; k < parts.length; k++) {
+                                                let p = parts[k];
+                                                
+                                                if (strToSearchIn.indexOf(p) < 0) {
+                                                    allDoMatch = false;
+                                                    break;
+                                                }
+                                            }
+
+                                            if (allDoMatch) {
+                                                matchingVars.push(v);
                                             }
                                         }
 
-                                        if (allDoMatch) {
-                                            matchingVars.push(v);
+                                        if (matchingVars.length > 0) {
+                                            me._currentFindIndex = index;
+                                            findRes = {
+                                                entry: e,
+                                                index: index,
+                                                variables: matchingVars,
+                                            };
+
+                                            break;
                                         }
                                     }
-
-                                    if (matchingVars.length > 0) {
-                                        me._currentFindIndex = index;
-                                        findRes = {
-                                            entry: e,
-                                            index: index,
-                                            variables: matchingVars,
-                                        };
-
-                                        break;
-                                    }
+                                    while (entries.moveNext());
                                 }
                             }
 
@@ -1552,6 +1569,9 @@ export class ConsoleManager {
                     time: now,
                 });
 
+                result.entries()
+                      .update(index, entry);
+
                 result.body(`Add log for ${index + 1}`);
             }
             else {
@@ -1929,48 +1949,65 @@ export class ConsoleManager {
                                     me._currentFindIndex = 0;
                                 }
 
-                                while (entries.moveNext()) {
-                                    let i = entries.key;
-                                    let index = (me._currentFindIndex + i) % entries.length;
-                                    
-                                    let e = entries[index];
-                                    if (!e) {
-                                        continue;
+                                // skip entries
+                                let doSearch = true;
+                                if (me._currentFindIndex > 0) {
+                                    for (let i = 0; i < me._currentFindIndex; i++) {
+                                        if (!entries.moveNext()) {
+                                            doSearch = false;
+                                            break;
+                                        }
                                     }
+                                }
+                                else {
+                                    doSearch = entries.moveNext();
+                                }
 
-                                    let vars = e.v;
-                                    if (!vars) {
-                                        continue;
-                                    }
-
-                                    let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
-
-                                    for (let j = 0; j < vars.length; j++) {
-                                        let v = vars[j];
-                                        if (!v) {
+                                if (doSearch) {
+                                    do {
+                                        let i = entries.key;
+                                        let index = (me._currentFindIndex + i) % entries.length;
+                                        
+                                        let e = entries.current;
+                                        if (!e) {
                                             continue;
                                         }
 
-                                        let strToSearchIn = '';
-                                        if (v.v) {
-                                            strToSearchIn = JSON.stringify(v.v);
+                                        let vars = e.v;
+                                        if (!vars) {
+                                            continue;
                                         }
 
-                                        if (regex.test(strToSearchIn)) {
-                                            matchingVars.push(v);
+                                        let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
+
+                                        for (let j = 0; j < vars.length; j++) {
+                                            let v = vars[j];
+                                            if (!v) {
+                                                continue;
+                                            }
+
+                                            let strToSearchIn = '';
+                                            if (v.v) {
+                                                strToSearchIn = JSON.stringify(v.v);
+                                            }
+
+                                            if (regex.test(strToSearchIn)) {
+                                                matchingVars.push(v);
+                                            }
+                                        }
+
+                                        if (matchingVars.length > 0) {
+                                            me._currentFindIndex = index;
+                                            findRes = {
+                                                entry: e,
+                                                index: index,
+                                                variables: matchingVars,
+                                            };
+
+                                            break;
                                         }
                                     }
-
-                                    if (matchingVars.length > 0) {
-                                        me._currentFindIndex = index;
-                                        findRes = {
-                                            entry: e,
-                                            index: index,
-                                            variables: matchingVars,
-                                        };
-
-                                        break;
-                                    }
+                                    while (entries.moveNext());
                                 }
                             }
 
@@ -2410,6 +2447,9 @@ export class ConsoleManager {
         if (entry) {
             entry.n = text;
 
+            result.entries()
+                  .update(index, entry);
+
             result.body(`Set information for ${index + 1}: ${text}`);
         }
         else {
@@ -2693,6 +2733,9 @@ export class ConsoleManager {
 
                     if (r.isInRange(index)) {
                         e.n = null;
+
+                        result.entries()
+                              .update(j, e);
 
                         if (unsetEntries.indexOf(index) < 0) {
                             unsetEntries.push(index);

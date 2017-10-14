@@ -152,6 +152,9 @@ export abstract class CollectionBase<T> extends IndexedEnumerableBase<T> impleme
             items.forEach(x => me.push(x));
         }
     }
+
+    /** @inheritdoc */
+    public abstract update(index: number, item?: T): void;
 }
 
 /**
@@ -205,6 +208,11 @@ export class ArrayCollection<T> extends CollectionBase<T> implements vsrd_contra
             this._array
                 .push(item);
         }
+    }
+
+    /** @inheritdoc */
+    public update(index: number, item?: T): void {
+        this._array[index] = item;
     }
 }
 
@@ -366,10 +374,20 @@ export class JsonFileCollection<T> extends CollectionBase<T> implements vsrd_con
             return;
         }
 
-        try {
-            let newLength = this._lengthFunc(this._lengthFunc() + 1);
+        let newLength = this._lengthFunc(this._lengthFunc() + 1);
 
-            let filePath = this.getFilePathByIndex(newLength - 1);
+        if (this.update(newLength - 1, item)) {
+            return true;
+        }
+        
+        this._lengthFunc(this._lengthFunc() - 1);
+        return false;
+    }
+
+    /** @inheritdoc */
+    public update(index: number, item?: T): boolean {
+        try {
+            let filePath = this.getFilePathByIndex(index);
 
             let json = '';
             if (item) {
@@ -388,7 +406,6 @@ export class JsonFileCollection<T> extends CollectionBase<T> implements vsrd_con
             return true;
         }
         catch (e) {
-            this._lengthFunc(this._lengthFunc() - 1);
             return false;
         }
     }

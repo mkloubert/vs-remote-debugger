@@ -55,6 +55,14 @@ export interface Collection<T> extends Enumerable<T> {
      * @param {T[]} [items] The items to add.
      */
     pushArray(items?: T[]): void;
+
+    /**
+     * Updates an item at a specific position.
+     * 
+     * @param {number} index The zero based index.
+     * @param {T} [item] The item to update.
+     */
+    update(index: number, item?: T): void;
 }
 
 /**
