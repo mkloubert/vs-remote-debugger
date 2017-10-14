@@ -3,10 +3,10 @@
   "displayName": "Generic Remote Debugger",
   "description": "Visual Studio Code extension for easy and generic code debugging via TCP.",
   "icon": "icon.png",
-  "version": "1.9.9",
+  "version": "2.0.0",
   "publisher": "mkloubert",
   "engines": {
-    "vscode": "^1.5.0"
+    "vscode": "^1.17.0"
   },
   "categories": [
     "Debuggers"

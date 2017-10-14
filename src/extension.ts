@@ -24,8 +24,11 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import * as vsrd_workspace from './workspace';
 
 export function activate(context: vscode.ExtensionContext) {
+    vsrd_workspace.resetSelectedWorkspaceFolder();
+
     let disposable = vscode.commands.registerCommand('extension.remoteDebugger', () => {
     });
 
