@@ -26,58 +26,23 @@
 import { DebugProtocol } from 'vscode-debugprotocol';
 
 /**
- * A collection of items.
- */
-export interface Collection<T> extends Enumerable<T> {
-    /**
-     * Clears the collection.
-     */
-    clear(): void;
-
-    /** @inheritdoc */
-    readonly key: number;
-
-    /**
-     * Gets the number of elements of that collection.
-     */
-    readonly length: number;
-    
-    /**
-     * Adds a new element.
-     * 
-     * @param {T} [item] The item to add.
-     */
-    push(item?: T): void;
-
-    /**
-     * Adds a list of items by array.
-     * 
-     * @param {T[]} [items] The items to add.
-     */
-    pushArray(items?: T[]): void;
-
-    /**
-     * Updates an item at a specific position.
-     * 
-     * @param {number} index The zero based index.
-     * @param {T} [item] The item to update.
-     */
-    update(index: number, item?: T): void;
-}
-
-/**
  * Describes a debugger context.
  */
 export interface DebuggerContext {
     /**
      * Gets or sets the list of entries.
      */
-    entries(entries?: RemoteDebuggerEntry[]): Collection<RemoteDebuggerEntry>;
+    entries(entries?: RemoteDebuggerEntry[]): RemoteDebuggerEntry[];
 
     /**
      * Gets or sets the list of favorites.
      */
-    favorites(favorites?: RemoteDebuggerFavorite[]): Collection<RemoteDebuggerFavorite>;
+    favorites(favorites?: RemoteDebuggerFavorite[]): RemoteDebuggerFavorite[];
+
+    /**
+     * Gets the list of friends.
+     */
+    friends(): Friend[];
 
     /**
      * Gets the nickname.
@@ -87,7 +52,7 @@ export interface DebuggerContext {
     /**
      * Returns the list of plugins.
      */
-    plugins(): Collection<DebuggerPluginEntry>;
+    plugins(): DebuggerPluginEntry[];
 
     /**
      * Gets the port the server is currently running on.
@@ -303,69 +268,6 @@ export interface DebuggerPluginModule {
 }
 
 /**
- * Describes an object that can be disposed.
- */
-export interface Disposable {
-    /**
-     * Disposes the object.
-     */
-    dispose(): void;
-}
-
-/**
- * A disposable collection.
- */
-export interface DisposableCollection<T> extends Collection<T>, Disposable {
-}
-
-/**
- * A sequence of items.
- */
-export interface Enumerable<T> {
-    /**
-     * Clones the sequence.
-     */
-    clone(): Enumerable<T>;
-
-    /**
-     * Counts the items of the sequence.
-     */
-    count(): number;
-
-    /**
-     * Gets the current item.
-     */
-    readonly current: T;
-
-    /**
-     * Gets the current key / index.
-     */
-    readonly key: any;
-
-    /**
-     * Tries to move to the next item.
-     * 
-     * @return {boolean} Next item reached (true) or EOF (false).
-     */
-    moveNext(): boolean;
-
-    /**
-     * Resets the enumerator.
-     */
-    reset(): void;
-
-    /**
-     * Creates a new array of the current elements of the sequence.
-     */
-    toArray(): T[];
-
-    /**
-     * Creates a new array of ALL elements of the sequence.
-     */
-    toArrayAll(): T[];
-}
-
-/**
  * Arguments for an event that is raised when an entry has been recived.
  */
 export interface EntryReceivedEventArguments {
@@ -515,11 +417,6 @@ export interface RemoteDebuggerEntry {
     },
 
     /**
-     * Request context
-     */
-    r?: RemoteDebuggerRequest,
-
-    /**
      * The stacktrace.
      */
     s?: RemoteDebuggerStackFrame[];
@@ -538,36 +435,6 @@ export interface RemoteDebuggerEntry {
      * The list of variables.
      */
     v?: RemoteDebuggerVariable[];
-}
-
-/**
- * A request context.
- */
-export interface RemoteDebuggerRequest {
-    /**
-     * The (Base64) encoded data of the request body.
-     */
-    b?: string;
-
-    /**
-     * The list of headers as key/value pairs.
-     */
-    h?: any;
-
-    /**
-     * The name of the request method.
-     */
-    m?: string;
-
-    /**
-     * The type, like 'http', 'https' or 'cli'.
-     */
-    t?: string;
-
-    /**
-     * The URI that represents the request.
-     */
-    u?: string;
 }
 
 /**
@@ -594,11 +461,6 @@ export interface RemoteDebuggerScope {
  * A frame of a stacktrace.
  */
 export interface RemoteDebuggerStackFrame {
-    /**
-     * Number of the column
-     */
-    c?: number;
-
     /**
      * The file path.
      */
@@ -748,11 +610,6 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
      * The maximum size in bytes a debug entry can have.
      */
     maxMessageSize?: number;
-
-    /**
-     * The mode: 'tcp' or 'http'.
-     */
-    mode?: string;
 
     /**
      * The nickname of the debugger's user.

@@ -28,11 +28,9 @@ import * as vsrd_contracts from './contracts';
 import * as vsrd_helpers from './helpers';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import FS = require('fs');
-const OPN = require('opn');
 import OS = require('os');
 import Path = require('path');
 import Net = require('net');
-import Table = require('easy-table');
 
 const DEFAULT_FILENAME_FORMAT = 'vsrd_favs_${timestamp}';
 
@@ -46,7 +44,6 @@ const COMMAND_WIKI_PAGES = {
     '-': 'prev_message',
     'add': null,
     'all': null,
-    'body': null,
     'clear': null,
     'continue': null,
     'counter': null,
@@ -80,7 +77,6 @@ const COMMAND_WIKI_PAGES = {
     'refresh': null,
     'regex': null,
     'remove': null,
-    'request': null,
     'reset': null,
     'save': null,
     'search': 'find',
@@ -96,7 +92,6 @@ const COMMAND_WIKI_PAGES = {
 };
 
 const REGEX_CMD_ADD = /^(add)(\s+.*)?$/i;
-const REGEX_CMD_BODY = /^(body)([\s]*)(raw|base64|string|ascii|json|hex|utf16)?$/i;
 const REGEX_CMD_COUNTER = /^(counter)([\s]*)([0-9]*)([\s]*)(pause)?$/i;
 const REGEX_CMD_DISABLE = /^(disable)([\s]*)(pause)?$/i;
 const REGEX_CMD_EXEC = /^(exec)([\s]+)([\S]+)([\s]?)(.*)$/i;
@@ -182,12 +177,12 @@ export interface ExecuteCommandResult {
     /**
      * Gets or sets the list of entries.
      */
-    entries(entries?: vsrd_contracts.RemoteDebuggerEntry[]): vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerEntry>;
+    entries(entries?: vsrd_contracts.RemoteDebuggerEntry[]): vsrd_contracts.RemoteDebuggerEntry[];
 
     /**
      * Gets or sets the list of favorites.
      */
-    favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.Collection<vsrd_contracts.RemoteDebuggerFavorite>;
+    favorites(favorites?: vsrd_contracts.RemoteDebuggerFavorite[]): vsrd_contracts.RemoteDebuggerFavorite[];
 
     /**
      * Gets the format that is used to generate names for message files.
@@ -197,7 +192,7 @@ export interface ExecuteCommandResult {
     /**
      * Gets the list of friends.
      */
-    friends(): vsrd_contracts.Collection<vsrd_contracts.Friend>;
+    friends(): vsrd_contracts.Friend[];
 
     /**
      * Jumps to a specific entry.
@@ -373,27 +368,15 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                entries.reset();
-                while (entries.moveNext()) {
-                    let j = entries.key;
-
+                for (let j = 0; j < entries.length; j++) {
                     let index = j + 1;
                     if (!r.isInRange(index)) {
                         continue;
                     }
 
                     let exists = false;
-
-                    favorites.reset();
-                    while (favorites.moveNext()) {
-                        let k = favorites.key;
-                        
-                        let f = favorites.current;
-                        if (!f) {
-                            continue;
-                        }
-
-                        if (f.index == index) {
+                    for (let k = 0; k < favorites.length; k++) {
+                        if (favorites[k].index == index) {
                             // do not add duplicates
 
                             exists = true;
@@ -407,7 +390,7 @@ export class ConsoleManager {
 
                     let fav: vsrd_contracts.RemoteDebuggerFavorite = { 
                         index: index,
-                        entry: entries.current,
+                        entry: entries[j],
                     };
 
                     favorites.push(fav);
@@ -416,17 +399,16 @@ export class ConsoleManager {
             }
 
             if (addedFavs.length > 0) {
-                result.favorites(
-                    favorites.toArrayAll().sort((x, y) => {
-                        if (x.index > y.index) {
-                            return 1;
-                        }
-                        if (x.index < y.index) {
-                            return -1;
-                        }
+                favorites.sort((x, y) => {
+                    if (x.index > y.index) {
+                        return 1;
+                    }
+                    if (x.index < y.index) {
+                        return -1;
+                    }
 
-                        return 0;
-                    }));
+                    return 0;
+                });
 
                 result.body(`The following ${addedFavs.length} favorites were added: ${addedFavs.sort().join(',')}`);
             }
@@ -446,130 +428,17 @@ export class ConsoleManager {
     protected cmd_all(result: ExecuteCommandResult): void {
         let entries = result.entries();
         
-        let favorites = result.favorites();
-        favorites.clear();
-
-        while (entries.moveNext()) {
-            let i = entries.key;
-            let e = entries.current;
-
+        let favorites: vsrd_contracts.RemoteDebuggerFavorite[] = [];
+        for (let i = 0; i < entries.length; i++) {
             favorites.push({
-                entry: e,
+                entry: entries[i],
                 index: i + 1,
             });
         }
 
+        result.favorites(favorites);
+
         result.body(`All ${favorites.length} entries were added as favorites`);
-        result.sendResponse();
-    }
-
-    /**
-     * 'body' command
-     * 
-     * @param {ExecuteCommandResult} result The object for handling the result.
-     * @param {RegExpExecArray} match Matches of the execution of a regular expression.
-     * @param {ConsoleManager} me The underlying console manager.
-     */
-    protected cmd_body(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entry = result.currentEntry();
-        if (entry) {
-            if (entry.r) {
-                if (entry.r.b) {
-                    let format = '';
-                    if (match[3]) {
-                        format = ('' + match[3]).toLowerCase().trim();
-                    }
-
-                    let outputBuilder: (body: Buffer) => string;
-
-                    switch (format) {
-                        case 'ascii':
-                            outputBuilder = (body) => {
-                                return body ? body.toString('ascii') : '';
-                            };
-                            break;
-
-                        case 'base64':
-                            outputBuilder = (body) => {
-                                let output: string = '';
-                                if (body) {
-                                    output = body.toString('base64');
-                                }
-
-                                return output;
-                            };
-                            break;
-
-                        case 'hex':
-                            outputBuilder = (body) => {
-                                return body ? body.toString('hex') : '';
-                            };
-                            break;
-
-                        case 'json':
-                            outputBuilder = (body) => {
-                                let json = body ? body.toString('utf8') : '';
-                                try {
-                                    let obj = JSON.parse(json);
-
-                                    return JSON.stringify(obj, null, 2);
-                                }
-                                catch (e) {
-                                    return json;
-                                }
-                            };
-                            break;
-
-                        case 'utf16':
-                            outputBuilder = (body) => {
-                                return body ? body.toString('utf16le') : '';
-                            };
-                            break;
-
-                        case 'string':
-                            outputBuilder = (body) => {
-                                return body ? body.toString('utf8') : '';
-                            };
-                            break;
-
-                        default:
-                            // 'raw'
-                            format = 'raw';
-                            outputBuilder = (body) => {
-                                return body ? body.toString('binary') : '';
-                            };
-                            break;
-                    }
-
-                    let buff: Buffer;
-                    let body = '' + entry.r.b;
-                    if (body) {
-                        try {
-                            let base64 = body.trim();
-                            if (base64) {
-                                buff = new Buffer(base64, 'base64');
-                            }
-                        }
-                        catch (e) {
-                            buff = new Buffer(body, 'ascii');
-                        }
-                    }
-
-                    result.write(outputBuilder(buff));
-                    result.body(`Format: ${format}`);
-                }
-                else {
-                    result.body('No body available');
-                }
-            }
-            else {
-                result.body('No information available');
-            }
-        }
-        else {
-            result.body('Please select an entry!');
-        }
-
         result.sendResponse();
     }
 
@@ -579,8 +448,8 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_clear(result: ExecuteCommandResult): void {
-        result.entries().clear();
-        result.favorites().clear();
+        result.entries([]);
+        result.favorites([]);
 
         result.body('Cleared');
         result.sendResponse();
@@ -693,7 +562,8 @@ export class ConsoleManager {
      */
     protected cmd_donate(result: ExecuteCommandResult): void {
         try {
-            OPN(URL_PAYPAL_DONATE);
+            const opn = require('opn');
+            opn(URL_PAYPAL_DONATE);
 
             result.body(`Opening donation page on PayPal (${URL_PAYPAL_DONATE})...`);
         }
@@ -728,16 +598,15 @@ export class ConsoleManager {
 
             let executedCommands = 0;
             let plugins = me._context.plugins();
-
-            while (plugins.moveNext()) {
-                let p = plugins.current.plugin;
+            for (let i = 0; i < plugins.length; i++) {
+                let p = plugins[i].plugin;
                 if (p.commands && p.execute) {
                     let execCtx: vsrd_contracts.DebuggerPluginExecutionContext;
                     
                     let supportedCommands = p.commands();
                     if (supportedCommands) {
-                        for (let i = 0; i < supportedCommands.length; i++) {
-                            let originalName = supportedCommands[i];
+                        for (let j = 0; j < supportedCommands.length; j++) {
+                            let originalName = supportedCommands[j];
                             if (!originalName) {
                                 continue;
                             }
@@ -783,9 +652,8 @@ export class ConsoleManager {
                 };
 
                 // try find similar commands
-                plugins.reset();
-                while (plugins.moveNext()) {
-                    let pe = plugins.current;
+                for (let i = 0; i < plugins.length; i++) {
+                    let pe = plugins[i];
                     let p = pe.plugin;
 
                     if (p.commands && p.execute) {
@@ -862,12 +730,11 @@ export class ConsoleManager {
         let totalCount = 0;
         
         let entriesToDisplay: DisplayableEntry[] = [];
-        {
+        if (favorites) {
             totalCount = favorites.length;
 
-            while (favorites.moveNext()) {
-                let fav = favorites.current;
-
+            for (let i = 0; i < favorites.length; i++) {
+                let fav = favorites[i];
                 if (fav && fav.entry) {
                     entriesToDisplay.push({
                         entry: fav.entry,
@@ -907,79 +774,60 @@ export class ConsoleManager {
                         try {
                             let findRes: VariableFinderResult;
 
-                            let entries = me.debugger.entries();
-
+                            let entries = result.entries();
                             if (entries.length > 0) {
                                 ++me._currentFindIndex;
                                 if (me._currentFindIndex >= entries.length) {
                                     me._currentFindIndex = 0;
                                 }
 
-                                // skip entries
-                                let doSearch = true;
-                                if (me._currentFindIndex > 0) {
-                                    for (let i = 0; i < me._currentFindIndex; i++) {
-                                        if (!entries.moveNext()) {
-                                            doSearch = false;
-                                            break;
-                                        }
+                                for (let i = 0; i < entries.length; i++) {
+                                    let index = (me._currentFindIndex + i) % entries.length;
+                                    
+                                    let e = entries[index];
+                                    if (!e) {
+                                        continue;
                                     }
-                                }
-                                else {
-                                    doSearch = entries.moveNext();
-                                }
 
-                                if (doSearch) {
-                                    do {
-                                        let i = entries.key;
-                                        let index = (me._currentFindIndex + i) % entries.length;
-                                        
-                                        let e = entries.current;
-                                        if (!e) {
+                                    let vars = e.v;
+                                    if (!vars) {
+                                        continue;
+                                    }
+
+                                    let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
+
+                                    for (let j = 0; j < vars.length; j++) {
+                                        let v = vars[j];
+                                        if (!v) {
                                             continue;
                                         }
 
-                                        let vars = e.v;
-                                        if (!vars) {
-                                            continue;
-                                        }
-
-                                        let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
-
-                                        for (let j = 0; j < vars.length; j++) {
-                                            let v = vars[j];
-                                            if (!v) {
-                                                continue;
-                                            }
-
-                                            let allDoMatch = true;
-                                            let strToSearchIn = JSON.stringify(v).toLowerCase().trim();
-                                            for (let k = 0; k < parts.length; k++) {
-                                                let p = parts[k];
-                                                
-                                                if (strToSearchIn.indexOf(p) < 0) {
-                                                    allDoMatch = false;
-                                                    break;
-                                                }
-                                            }
-
-                                            if (allDoMatch) {
-                                                matchingVars.push(v);
+                                        let allDoMatch = true;
+                                        let strToSearchIn = JSON.stringify(v).toLowerCase().trim();
+                                        for (let k = 0; k < parts.length; k++) {
+                                            let p = parts[k];
+                                            
+                                            if (strToSearchIn.indexOf(p) < 0) {
+                                                allDoMatch = false;
+                                                break;
                                             }
                                         }
 
-                                        if (matchingVars.length > 0) {
-                                            me._currentFindIndex = index;
-                                            findRes = {
-                                                entry: e,
-                                                index: index,
-                                                variables: matchingVars,
-                                            };
-
-                                            break;
+                                        if (allDoMatch) {
+                                            matchingVars.push(v);
                                         }
                                     }
-                                    while (entries.moveNext());
+
+                                    if (matchingVars.length > 0) {
+                                        me._currentFindIndex = index;
+                                        findRes = {
+                                            entry: e,
+                                            index: index,
+                                            variables: matchingVars,
+                                        };
+
+                                        break;
+                                    }
                                 }
                             }
 
@@ -1038,11 +886,11 @@ export class ConsoleManager {
         if (friends.length > 0) {
             let output = '';
 
+            const Table = require('easy-table');
             let t = new Table();
 
-            while (friends.moveNext()) {
-                let i = friends.key;
-                let f = friends.current;
+            for (let i = 0; i < friends.length; i++) {
+                let f = friends[i];
 
                 t.cell('#', i + 1);
                 t.cell('Name', f.name);
@@ -1067,7 +915,8 @@ export class ConsoleManager {
      */
     protected cmd_github(result: ExecuteCommandResult): void {
         try {
-            OPN(URL_PROJECT_GITHUB);
+            const opn = require('opn');
+            opn(URL_PROJECT_GITHUB);
 
             result.body(`Opening project page on GitHub (${URL_PROJECT_GITHUB})...`);
         }   
@@ -1085,7 +934,8 @@ export class ConsoleManager {
      */
     protected cmd_issues(result: ExecuteCommandResult): void {
         try {
-            OPN(URL_ISSUES_GITHUB);
+            const opn = require('opn');
+            opn(URL_ISSUES_GITHUB);
 
             result.body(`Opening issue page on GitHub (${URL_ISSUES_GITHUB})...`);
         }   
@@ -1125,6 +975,8 @@ export class ConsoleManager {
         }
 
         try {
+            const opn = require('opn');
+
             let listOfCommands: string[];
             if (cmd) {
                 listOfCommands = cmd.split(' ').map(x => {
@@ -1146,7 +998,7 @@ export class ConsoleManager {
                             }
 
                             let url = `https://github.com/mkloubert/vs-remote-debugger/wiki/${encodeURIComponent('command_' + wikiPage)}`;
-                            OPN(url);
+                            opn(url);
 
                             result.writeLine(`Opening wiki page of command '${c}': ${url}`);
                         }
@@ -1190,7 +1042,7 @@ export class ConsoleManager {
             }
             else {
                 let url = `https://github.com/mkloubert/vs-remote-debugger/wiki#commands`;
-                OPN(url);
+                opn(url);
 
                 result.writeLine(`Opening wiki page with all commands: ${url}`);
             }
@@ -1208,60 +1060,58 @@ export class ConsoleManager {
      * @param {ExecuteCommandResult} result The object for handling the result.
      */
     protected cmd_help_screen(result: ExecuteCommandResult): void {
-        let output = ' Command                                        | Description\n';
-           output += '------------------------------------------------|-----------------------------------------------------------------------------------\n';
-           output += ' ?                                              | Shows that help screen\n';
-           output += ' +                                              | Goes to next entry\n';
-           output += ' -                                              | Goes to previous entry\n';
-           output += ' about                                          | Displays information about the plugin and the author\n';
-           output += ' add [$INDEXES]                                 | Adds the current or specific entries as favorites\n';
-           output += ' body [ascii|base64|hex|json|raw|string|utf16]  | Displays the body of the request\n';
-           output += ' all                                            | Adds all entries as favorites\n';
-           output += ' clear                                          | Removes all loaded entries and favorites\n';
-           output += ' continue                                       | Continues debugging\n';
-           output += ' counter [$VALUE] [pause]                       | Sets the counter value and disables "pause mode" by default\n';
-           output += ' current                                        | Displays current index\n';
-           output += ' debug                                          | Runs debugger itself in "debug mode"\n';
-           output += ' disable [pause]                                | Disables the counter and disables "pause mode" by default\n';
-           output += ' donate                                         | If you like that extension, you can send me a donation via PayPal :-)\n';
-           output += ' exec $COMMAND [$ARGS]                          | Executes a command of a plugin\n';
-           output += ' favs                                           | Lists all favorites\n';
-           output += ' find [$EXPR]                                   | Starts a search for an expression inside the "Debugger" variables\n';
-           output += ' first                                          | Jumps to first item\n';
-           output += ' friends                                        | Displays the list of friends\n';
-           output += ' github                                         | Opens the project page on GitHub\n';
-           output += ' goto $INDEX                                    | Goes to a specific entry (beginning at 1)\n';
-           output += ' help [$COMMANDS]                               | Opens the wiki page of one or more command with details information\n';
-           output += ' history [$INDEXES]                             | Lists the logs of one or more entry\n';
-           output += ' issues                                         | Opens the "issues" page of the project on GitHub\n';
-           output += ' last                                           | Jumps to last entry\n';
-           output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]      | Lists a number of entries\n';
-           output += ' load [$FILE]                                   | Loads entries from a local JSON file\n';
-           output += ' log $MESSAGE                                   | Adds a log message to the current entry\n';
-           output += ' me                                             | Lists all network interfaces of that machine\n';
-           output += ' new [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]       | Lists a number of entries (backward)\n';
-           output += ' next                                           | Continues a "Debugger" variable search\n';
-           output += ' nodebug                                        | Stops running debugger itself in "debug mode"\n';
-           output += ' none                                           | Clears all favorites\n';
-           output += ' pause                                          | Pauses debugging (skips incoming messages)\n';
-           output += ' plugins                                        | Lists all loaded plugins\n';
-           output += ' refresh                                        | Refreshes the view\n';
-           output += ' regex $PATTERN                                 | Starts a search inside the "Debugger" variables by using a regular expression\n';
-           output += ' remove [$INDEXES]                              | Removes one or more entry from the list of favorites\n';
-           output += ' request                                        | Shows information about the underlying request\n';
-           output += ' reset [pause]                                  | Resets the counter with the start value from the debugger config\n';
-           output += '                                                | and disables "pause mode" by default\n';  
-           output += ' save [$FILE]                                   | Saves the favorites to a local JSON file\n';
-           output += ' search [$EXPR]                                 | Alias for "find" command\n';
-           output += ' send $ADDR [$PORT]                             | Sends your favorites to a remote machine\n';
-           output += ' set $TEXT                                      | Sets additional information like a "note" value for the current entry\n';
-           output += ' share [$FRIENDS]*                              | Sends your favorites to one or more friend\n';
-           output += ' sort                                           | Sorts all entries by timestamp\n';
-           output += ' state                                          | Displays the current debugger state\n';
-           output += ' toggle                                         | Toggles "paused" state\n';
-           output += ' trim                                           | Removes all entries that are NOT marked as "favorites"\n';
-           output += ' twitter                                        | Opens my twitter page\n';
-           output += ' unset [$INDEXES]                               | Removes the additional information that is stored in one or more entry\n';
+        let output = ' Command                                     | Description\n';
+           output += '---------------------------------------------|-----------------------------------------------------------------------------------\n';
+           output += ' ?                                           | Shows that help screen\n';
+           output += ' +                                           | Goes to next entry\n';
+           output += ' -                                           | Goes to previous entry\n';
+           output += ' about                                       | Displays information about the plugin and the author\n';
+           output += ' add [$INDEXES]                              | Adds the current or specific entries as favorites\n';
+           output += ' all                                         | Adds all entries as favorites\n';
+           output += ' clear                                       | Removes all loaded entries and favorites\n';
+           output += ' continue                                    | Continues debugging\n';
+           output += ' counter [$VALUE] [pause]                    | Sets the counter value and disables "pause mode" by default\n';
+           output += ' current                                     | Displays current index\n';
+           output += ' debug                                       | Runs debugger itself in "debug mode"\n';
+           output += ' disable [pause]                             | Disables the counter and disables "pause mode" by default\n';
+           output += ' donate                                      | If you like that extension, you can send me a donation via PayPal :-)\n';
+           output += ' exec $COMMAND [$ARGS]                       | Executes a command of a plugin\n';
+           output += ' favs                                        | Lists all favorites\n';
+           output += ' find [$EXPR]                                | Starts a search for an expression inside the "Debugger" variables\n';
+           output += ' first                                       | Jumps to first item\n';
+           output += ' friends                                     | Displays the list of friends\n';
+           output += ' github                                      | Opens the project page on GitHub\n';
+           output += ' goto $INDEX                                 | Goes to a specific entry (beginning at 1)\n';
+           output += ' help [$COMMANDS]                            | Opens the wiki page of one or more command with details information\n';
+           output += ' history [$INDEXES]                          | Lists the logs of one or more entry\n';
+           output += ' issues                                      | Opens the "issues" page of the project on GitHub\n';
+           output += ' last                                        | Jumps to last entry\n';
+           output += ' list [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]   | Lists a number of entries\n';
+           output += ' load [$FILE]                                | Loads entries from a local JSON file\n';
+           output += ' log $MESSAGE                                | Adds a log message to the current entry\n';
+           output += ' me                                          | Lists all network interfaces of that machine\n';
+           output += ' new [$ITEMS_TO_SKIP] [$ITEMS_TO_DISPLAY]    | Lists a number of entries (backward)\n';
+           output += ' next                                        | Continues a "Debugger" variable search\n';
+           output += ' nodebug                                     | Stops running debugger itself in "debug mode"\n';
+           output += ' none                                        | Clears all favorites\n';
+           output += ' pause                                       | Pauses debugging (skips incoming messages)\n';
+           output += ' plugins                                     | Lists all loaded plugins\n';
+           output += ' refresh                                     | Refreshes the view\n';
+           output += ' regex $PATTERN                              | Starts a search inside the "Debugger" variables by using a regular expression\n';
+           output += ' remove [$INDEXES]                           | Removes one or more entry from the list of favorites\n';
+           output += ' reset [pause]                               | Resets the counter with the start value from the debugger config\n';
+           output += '                                             | and disables "pause mode" by default\n';  
+           output += ' save [$FILE]                                | Saves the favorites to a local JSON file\n';
+           output += ' search [$EXPR]                              | Alias for "find" command\n';
+           output += ' send $ADDR [$PORT]                          | Sends your favorites to a remote machine\n';
+           output += ' set $TEXT                                   | Sets additional information like a "note" value for the current entry\n';
+           output += ' share [$FRIENDS]*                           | Sends your favorites to one or more friend\n';
+           output += ' sort                                        | Sorts all entries by timestamp\n';
+           output += ' state                                       | Displays the current debugger state\n';
+           output += ' toggle                                      | Toggles "paused" state\n';
+           output += ' trim                                        | Removes all entries that are NOT marked as "favorites"\n';
+           output += ' twitter                                     | Opens my twitter page\n';
+           output += ' unset [$INDEXES]                            | Removes the additional information that is stored in one or more entry\n';
 
         result.write(output);
 
@@ -1303,16 +1153,13 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                entries.reset();
-                while (entries.moveNext()) {
-                    let j = entries.key;
-
+                for (let j = 0; j < entries.length; j++) {
                     let index = j + 1;
                     if (!r.isInRange(index)) {
                         continue;
                     }
 
-                    let e = entries.current;
+                    let e = entries[j];
                     result.writeLine(me.toShortListEntryString(e, index));
 
                     if (e.__logs && e.__logs.length && e.__logs.length > 0) {
@@ -1391,23 +1238,18 @@ export class ConsoleManager {
         }
 
         let entriesToDisplay: DisplayableEntry[] = [];
-
-        for (let i = 0; i < itemsToSkip; i++) {
-            if (!entries.moveNext()) {
+        for (let i = 0; i < itemsToDisplay; i++) {
+            let index = itemsToSkip + i;
+            if (index >= entries.length) {
+                // no more items to display
                 break;
             }
-        }
 
-        for (let i = 0; i < itemsToDisplay; i++) {
-            if (!entries.moveNext()) {
-                break;  // no more items to display
-            }
-
-            let entry = entries.current;
+            let entry = entries[index];
             if (entry) {
                 entriesToDisplay.push({
                     entry: entry,
-                    index: entries.key + 1,
+                    index: index + 1,
                 });
             }
         }
@@ -1569,9 +1411,6 @@ export class ConsoleManager {
                     time: now,
                 });
 
-                result.entries()
-                      .update(index, entry);
-
                 result.body(`Add log for ${index + 1}`);
             }
             else {
@@ -1609,6 +1448,7 @@ export class ConsoleManager {
         }
 
         if (foundInterfaces.length > 0) {
+            const Table = require('easy-table');
             let t = new Table();
             
             for (let i = 0; i < foundInterfaces.length; i++) {
@@ -1653,41 +1493,24 @@ export class ConsoleManager {
         }
 
         let entriesToDisplay: DisplayableEntry[] = [];
-
-        if (entries.length > 0) {
-            let startIndex = entries.length - itemsToDisplay - itemsToSkip;
-            if (startIndex < 0) {
-                startIndex = 0;
+        for (let i = 0; i < itemsToDisplay; i++) {
+            let index = entries.length - (itemsToSkip + i) - 1;
+            if (index < 0) {
+                // no more items to display
+                break;
             }
 
-            let endIndex = entries.length - 1 - itemsToSkip;
-            if (endIndex < 0) {
-                endIndex = 0;
-            }
-
-            for (let i = 0; i < startIndex; i++) {
-                if (!entries.moveNext()) {
-                    break;
-                }
-            }
-
-            for (let i = startIndex; i <= endIndex; i++) {
-                if (!entries.moveNext()) {
-                    break;
-                }
-
-                let entry = entries.current;
-                if (entry) {
-                    entriesToDisplay.push({
-                        entry: entry,
-                        index: entries.key + 1,
-                    })
-                }
+            let entry = entries[index];
+            if (entry) {
+                entriesToDisplay.push({
+                    entry: entry,
+                    index: index + 1,
+                })
             }
         }
 
         me.displayEntries(result,
-                          entriesToDisplay.reverse(), entries.length);
+                          entriesToDisplay, entries.length);
 
         result.sendResponse();
     }
@@ -1769,13 +1592,12 @@ export class ConsoleManager {
             if (plugins.length > 0) {
                 let output = '';
 
+                const Table = require('easy-table');
                 let t;
                 
                 t = new Table();
-                while (plugins.moveNext()) {
-                    let i = plugins.key;
-
-                    let pe = plugins.current;
+                for (let i = 0; i < plugins.length; i++) {
+                    let pe = plugins[i];
                     let p = pe.plugin;
                     
                     let info: vsrd_contracts.DebuggerPluginInfo;
@@ -1949,65 +1771,47 @@ export class ConsoleManager {
                                     me._currentFindIndex = 0;
                                 }
 
-                                // skip entries
-                                let doSearch = true;
-                                if (me._currentFindIndex > 0) {
-                                    for (let i = 0; i < me._currentFindIndex; i++) {
-                                        if (!entries.moveNext()) {
-                                            doSearch = false;
-                                            break;
-                                        }
+                                for (let i = 0; i < entries.length; i++) {
+                                    let index = (me._currentFindIndex + i) % entries.length;
+                                    
+                                    let e = entries[index];
+                                    if (!e) {
+                                        continue;
                                     }
-                                }
-                                else {
-                                    doSearch = entries.moveNext();
-                                }
 
-                                if (doSearch) {
-                                    do {
-                                        let i = entries.key;
-                                        let index = (me._currentFindIndex + i) % entries.length;
-                                        
-                                        let e = entries.current;
-                                        if (!e) {
+                                    let vars = e.v;
+                                    if (!vars) {
+                                        continue;
+                                    }
+
+                                    let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
+
+                                    for (let j = 0; j < vars.length; j++) {
+                                        let v = vars[j];
+                                        if (!v) {
                                             continue;
                                         }
 
-                                        let vars = e.v;
-                                        if (!vars) {
-                                            continue;
+                                        let strToSearchIn = '';
+                                        if (v.v) {
+                                            strToSearchIn = JSON.stringify(v.v);
                                         }
 
-                                        let matchingVars: vsrd_contracts.RemoteDebuggerVariable[] = [];
-
-                                        for (let j = 0; j < vars.length; j++) {
-                                            let v = vars[j];
-                                            if (!v) {
-                                                continue;
-                                            }
-
-                                            let strToSearchIn = '';
-                                            if (v.v) {
-                                                strToSearchIn = JSON.stringify(v.v);
-                                            }
-
-                                            if (regex.test(strToSearchIn)) {
-                                                matchingVars.push(v);
-                                            }
-                                        }
-
-                                        if (matchingVars.length > 0) {
-                                            me._currentFindIndex = index;
-                                            findRes = {
-                                                entry: e,
-                                                index: index,
-                                                variables: matchingVars,
-                                            };
-
-                                            break;
+                                        if (regex.test(strToSearchIn)) {
+                                            matchingVars.push(v);
                                         }
                                     }
-                                    while (entries.moveNext());
+
+                                    if (matchingVars.length > 0) {
+                                        me._currentFindIndex = index;
+                                        findRes = {
+                                            entry: e,
+                                            index: index,
+                                            variables: matchingVars,
+                                        };
+
+                                        break;
+                                    }
                                 }
                             }
 
@@ -2041,7 +1845,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_remove(result: ExecuteCommandResult, match: RegExpExecArray, me: ConsoleManager): void {
-        let entries = result.entries();
+        let entries = result.favorites();
         let favorites = result.favorites();
 
         let listOfRanges = match[2];
@@ -2072,14 +1876,11 @@ export class ConsoleManager {
         if (null !== ranges) {
             let removedFavs: number[] = [];
 
-            let newFavs: vsrd_contracts.RemoteDebuggerFavorite[] = favorites.toArrayAll();
+            let newFavs: vsrd_contracts.RemoteDebuggerFavorite[] = favorites;
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                entries.reset();
-                while (entries.moveNext()) {
-                    let j = entries.key;
-
+                for (let j = 0; j < entries.length; j++) {
                     let index = j + 1;
                     if (!r.isInRange(index)) {
                         continue;
@@ -2104,107 +1905,6 @@ export class ConsoleManager {
             else {
                 result.body('No favorites removed');
             }
-        }
-
-        result.sendResponse();
-    }
-
-    /**
-     * 'request' command
-     * 
-     * @param {ExecuteCommandResult} result The object for handling the result.
-     */
-    protected cmd_request(result: ExecuteCommandResult): void {
-        let entry = result.currentEntry();
-        if (entry) {
-            if (entry.r) {
-                let output = '';
-
-                output += 'Type: ';
-                if (entry.r.t) {
-                    output += '' + entry.r.t;
-                }
-                else {
-                    output += '<UNKNOWN>';
-                }
-                output += "\n";
-
-                output += 'Method: ';
-                if (entry.r.m) {
-                    output += '' + entry.r.m;
-                }
-                else {
-                    output += '<UNKNOWN>';
-                }
-                output += "\n";
-
-                output += '\n';
-                output += 'Header:\n';
-                output += '============\n';
-                if (entry.r.h) {
-                    let t = new Table();
-
-                    let i = -1;
-                    for (let k in entry.r.h) {
-                        ++i;
-                        
-                        t.cell('#', i + 1);
-                        t.cell('Name', '' + k);
-                        t.cell('Value', '' + entry.r.h[k]);
-                        
-                        t.newRow();
-                    }
-
-                    output += t.toString() + "\n";
-                }
-                else {
-                    output += 'No information available\n';
-                }
-
-                output += 'Body:\n';
-                output += '==========\n';
-                output += 'Size: ';
-                try {
-                    if (entry.r.b) {
-                        // first check if Base64...
-                        let strBody = '' + entry.r.b;
-                        try {
-                            let buff = new Buffer(strBody.trim(), 'base64');
-
-                            output += buff.length;
-                        }
-                        catch (e) {
-                            // no, so handle as "raw" string
-                            output += strBody.length;
-                        }
-                    }
-                    else {
-                        output += '<EMPTY>';
-                    }
-                }
-                catch (e) {
-                    output += '[ERROR] ' + e;
-                }
-                output += '\n\n';
-
-                let uri: string;
-                if (entry.r.u) {
-                    uri = '' + entry.r.u;
-                }
-                else {
-                    uri = '<UNKNOWN>';
-                }
-
-                result.writeLine(output);
-
-                result.body(`URI: ${uri}`);
-            }
-            else {
-                result.body('No request information available');
-            }
-        }
-        else {
-            result.body('Please select an entry!');
         }
 
         result.sendResponse();
@@ -2334,10 +2034,8 @@ export class ConsoleManager {
                     try {
                         let jsons: string[] = [];
 
-                        while(favorites.moveNext()) {
-                            let i = favorites.key;
-                            
-                            let fav = favorites.current;
+                        for (let i = 0; i < favorites.length; i++) {
+                            let fav = favorites[i];
                             if (!fav) {
                                 continue;
                             }
@@ -2399,23 +2097,29 @@ export class ConsoleManager {
 
         let output = '';
 
-        if (favs.length > 0) {
+        if (favs && favs.length > 0) {
             let finished = () => {
                 result.writeLine(`Send favorites to '${host}:${port}'`);
 
                 result.sendResponse();
             };
 
+            let i = -1;
             let sendNext: () => void;
             sendNext = function() {
-                if (!favs.moveNext() || !favs.current) {
+                ++i;
+                
+                if (!favs) {
                     finished();
                     return;
                 }
 
-                let entry = favs.current.entry;
+                if (i >= favs.length) {
+                    finished();
+                    return;
+                }
 
-                me.sendEntryTo(entry, host, port, me)
+                me.sendEntryTo(favs[i].entry, host, port, me)
                   .then((e) => {
                             sendNext();
                         },
@@ -2446,9 +2150,6 @@ export class ConsoleManager {
         let entry = result.currentEntry();
         if (entry) {
             entry.n = text;
-
-            result.entries()
-                  .update(index, entry);
 
             result.body(`Set information for ${index + 1}: ${text}`);
         }
@@ -2497,30 +2198,31 @@ export class ConsoleManager {
                 }
             }
             else {
-                friends = allFriends.toArrayAll();
+                friends = allFriends;
             }
 
             if (friends.length > 0) {
                 let sendToFriend = (f: vsrd_contracts.Friend) => {
-                    favs.reset();
-
                     let finished = () => {
                         result.writeLine(`Send favorites to '${f.name}' (${f.address}:${f.port})`);
                     };
-
+                    
+                    let i = -1;
                     let sendNext: () => void;
                     sendNext = function() {
-                        if (!favs.moveNext() || !favs.current) {
+                        ++i;
+                        
+                        if (!favs) {
                             finished();
                             return;
                         }
 
-                        let entry = favs.current.entry;
-                        if (!entry) {
+                        if (i >= favs.length) {
+                            finished();
                             return;
                         }
 
-                        me.sendEntryTo(entry, f.address, f.port, me)
+                        me.sendEntryTo(favs[i].entry, f.address, f.port, me)
                           .then((e) => {
                                     sendNext();
                                 },
@@ -2557,7 +2259,7 @@ export class ConsoleManager {
      * @param {ConsoleManager} me The underlying console manager.
      */
     protected cmd_sort(result: ExecuteCommandResult, me: ConsoleManager): void {
-        let entries = result.entries().toArrayAll().sort((x, y) => {
+        let entries = result.entries().sort((x, y) => {
             let sortX = me.toDateString(x.__time);
             let sortY = me.toDateString(y.__time);
 
@@ -2630,16 +2332,11 @@ export class ConsoleManager {
 
         // find entries that are marked as favorites
         let newEntries: vsrd_contracts.RemoteDebuggerEntry[] = [];
+        for (let i = 0; i < favorites.length; i++) {
+            let f = favorites[i];
 
-        while (favorites.moveNext()) {
-            let i = favorites.key;
-            let f = favorites.current;
-
-            entries.reset();
-            while (entries.moveNext()) {
-                let j = entries.key;
-
-                let e = entries.current;
+            for (let j = 0; j < entries.length; j++) {
+                let e = entries[j];
                 let index = j + 1;
 
                 if (index == f.index) {
@@ -2678,7 +2375,8 @@ export class ConsoleManager {
      */
     protected cmd_twitter(result: ExecuteCommandResult): void {
         try {
-            OPN(URL_TWITTER);
+            const opn = require('opn');
+            opn(URL_TWITTER);
 
             result.body(`Opening Twitter page (${URL_TWITTER})...`);
         }
@@ -2724,18 +2422,12 @@ export class ConsoleManager {
             for (let i = 0; i < ranges.length; i++) {
                 let r = ranges[i];
 
-                entries.reset();
-                while (entries.moveNext()) {
-                    let j = entries.key;
-                    
-                    let e = entries.current;
+                for (let j = 0; j < entries.length; j++) {
+                    let e = entries[j];
                     let index = j + 1;
 
                     if (r.isInRange(index)) {
                         e.n = null;
-
-                        result.entries()
-                              .update(j, e);
 
                         if (unsetEntries.indexOf(index) < 0) {
                             unsetEntries.push(index);
@@ -2756,13 +2448,6 @@ export class ConsoleManager {
     }
 
     /**
-     * Gets the underlying debugger context.
-     */
-    public get debugger(): vsrd_contracts.DebuggerContext {
-        return this._context;
-    }
-
-    /**
      * Displays a list of entries as table.
      * 
      * @param {ExecuteCommandResult} result The result context.
@@ -2777,6 +2462,7 @@ export class ConsoleManager {
         }
 
         if (entries && entries.length > 0) {
+            const Table = require('easy-table');
             let t = new Table();
 
             for (let i = 0; i < entries.length; i++) {
@@ -2959,9 +2645,6 @@ export class ConsoleManager {
         else if ('refresh' == lowerExpr) {
             action = this.cmd_refresh;
         }
-        else if ('request' == lowerExpr) {
-            action = this.cmd_request;
-        }
         else if ('sort' == lowerExpr) {
             action = this.cmd_sort;
         }
@@ -2981,11 +2664,6 @@ export class ConsoleManager {
             // add
             action = toRegexAction(this.cmd_add,
                                    REGEX_CMD_ADD, trimmedExpr);
-        }
-        else if (REGEX_CMD_BODY.test(trimmedExpr)) {
-            // body
-            action = toRegexAction(this.cmd_body,
-                                   REGEX_CMD_BODY, trimmedExpr);
         }
         else if (REGEX_CMD_COUNTER.test(trimmedExpr)) {
             // counter
@@ -3217,10 +2895,10 @@ export class ConsoleManager {
 
             try {
                 let json = new Buffer(JSON.stringify(entry),
-                                      'utf8');
+                                    'utf8');
 
                 // prepare JSON data
-                let plugins = me._context.plugins().toArrayAll();
+                let plugins = me._context.plugins();
                 for (let i = plugins.length - 1; i >= 0; i--) {
                     let p = plugins[i].plugin;
 
